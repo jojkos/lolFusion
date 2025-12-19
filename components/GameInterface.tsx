@@ -76,6 +76,75 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
     }
   }, [initialData]);
 
+  // Image Loading & Canvas Drawing Logic
+  useEffect(() => {
+    if (!initialData?.imageUrl || !canvasRef.current) return;
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // Important for manipulating external images
+    img.src = initialData.imageUrl;
+
+    img.onload = () => {
+      imageRef.current = img;
+      setImageLoaded(true);
+      drawCanvas();
+    };
+
+    img.onerror = (e) => {
+      console.error("Failed to load image:", e);
+      setMessage("Error loading puzzle result.");
+      setImageLoaded(false);
+    };
+  }, [initialData]);
+
+  // Redraw when zoom changes
+  useEffect(() => {
+    if (imageLoaded) {
+      drawCanvas();
+    }
+  }, [zoomLevel, imageLoaded, phase]);
+
+  const drawCanvas = () => {
+    const canvas = canvasRef.current;
+    const img = imageRef.current;
+    if (!canvas || !img) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas size to match display size for sharpness (or fixed internal resolution)
+    // We'll use a fixed internal resolution for consistency
+    canvas.width = 500;
+    canvas.height = 500;
+
+    // Clear
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Calculate Zoom & Center
+    // zoomLevel 3.0 means we show 1/3rd of the image? Or image is 3x bigger?
+    // Let's assume zoomLevel = scale. 
+    // We want to verify verify center crop.
+    
+    const w = canvas.width;
+    const h = canvas.height;
+    
+    // Draw logic:
+    // We want to draw the image centered, scaled by zoomLevel.
+    // origin x,y should be center.
+    
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+    ctx.scale(zoomLevel, zoomLevel);
+    ctx.translate(-w / 2, -h / 2);
+    
+    // Draw image to cover canvas
+    // Assuming image is square-ish or we fit it?
+    // We use drawImage(img, 0, 0, w, h) to stretch to canvas, then scale applies zoom.
+    ctx.drawImage(img, 0, 0, w, h);
+    
+    ctx.restore();
+  };
+
   // Save State Helper
   const saveState = (newState: any) => {
       if (!initialData) return;

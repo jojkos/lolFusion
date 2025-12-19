@@ -171,9 +171,8 @@ export async function GET(request: NextRequest) {
     try {
         const finalPrompt = encodeURIComponent(refinedPrompt.slice(0, 1000));
         const apiKey = process.env.POLLINATIONS_API_KEY || '';
-        
         // Construct URL
-        let imageUrl = `https://image.pollinations.ai/prompt/${finalPrompt}?width=1280&height=720&model=nanobanana-pro&seed=${Math.floor(Math.random() * 1000)}&nologo=true`;
+        let imageUrl = `https://image.pollinations.ai/prompt/${finalPrompt}?width=2560&height=1440&quality=hd&model=nanobanana-pro&seed=${Math.floor(Math.random() * 1000)}&nologo=true`;
         
         if (apiKey) {
             imageUrl += `&api_key=${apiKey}`; 
