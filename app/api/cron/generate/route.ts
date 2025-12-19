@@ -212,7 +212,8 @@ export async function GET(request: NextRequest) {
           champA: champA.name,
           champB: champB.name,
           theme,
-          imageUrl: blob.url,
+          // Append timestamp to bust CDN cache since we overwrite the file
+          imageUrl: `${blob.url}?t=${Date.now()}`,
           date,
         };
 
