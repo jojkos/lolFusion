@@ -26,6 +26,8 @@ export const metadata: Metadata = {
   },
 };
 
+import BuyMeCoffee from "@/components/BuyMeCoffee";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -37,6 +39,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
+        <BuyMeCoffee />
       </body>
     </html>
   );

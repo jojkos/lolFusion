@@ -106,3 +106,41 @@ export async function getSolution() {
         return null;
     }
 }
+export async function submitGameStats(attempts: number) {
+  try {
+    const puzzle = await kv.get<DailyPuzzle>('daily_puzzle');
+    if (!puzzle) return null;
+
+    // Use a hash to store the distribution of attempts for this date
+    // Key: stats:{date} Field: {attempts} Value: count
+    const key = `stats:${puzzle.date}`;
+    await kv.hincrby(key, attempts.toString(), 1);
+    
+    // Also increment total completions
+    await kv.incr(`stats:${puzzle.date}:total`);
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to submit stats:', error);
+    return false;
+  }
+}
+
+export async function getGameStats() {
+    try {
+        const puzzle = await kv.get<DailyPuzzle>('daily_puzzle');
+        if (!puzzle) return null;
+
+        const key = `stats:${puzzle.date}`;
+        const distribution = await kv.hgetall(key);
+        const total = await kv.get<number>(`stats:${puzzle.date}:total`);
+
+        return {
+            distribution: distribution || {},
+            total: total || 0
+        };
+    } catch (error) {
+        console.error('Failed to get stats:', error);
+        return null;
+    }
+}
