@@ -1,4 +1,4 @@
-# Fusion Universe
+# LoL Fusion
 
 Daily League of Legends Champion Fusion Puzzle Game.
 

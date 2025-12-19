@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { Loader2 } from 'lucide-react';
+import { Loader2, History } from 'lucide-react';
 import { THEMES } from '@/lib/constants';
 import { submitChampionGuess, submitThemeGuess, getSolution, submitGameStats, getGameStats } from '@/app/actions';
+import HistoryDrawer from './HistoryDrawer';
 
 interface GameInterfaceProps {
   initialData: {
@@ -24,10 +25,14 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [championsList, setChampionsList] = useState<string[]>([]);
   const [imgDimensions, setImgDimensions] = useState({ width: 500, height: 500 });
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // New State
   const [wrongGuesses, setWrongGuesses] = useState<string[]>([]);
   const [attempts, setAttempts] = useState(0);
+  const [givenUp, setGivenUp] = useState(false);
+  const [revealedNames, setRevealedNames] = useState<{ A: string | null; B: string | null }>({ A: null, B: null });
+
   const [globalStats, setGlobalStats] = useState<{ distribution: Record<string, unknown>, total: number } | null>(null);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -35,8 +40,8 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
 
   const imageRef = useRef<HTMLImageElement | null>(null);
 
+  // Fetch Champions Dynamically (Get Names, not IDs)
   useEffect(() => {
-    // Fetch Champions Dynamically (Get Names, not IDs)
     const fetchChampions = async () => {
         try {
             const vRes = await fetch('https://ddragon.leagueoflegends.com/api/versions.json');
@@ -46,12 +51,20 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
             const data = await cRes.json();
             // Map to names: "Aatrox" -> "Aatrox", "Renata" -> "Renata Glasc"
             const names = Object.values(data.data).map((c: any) => c.name);
-            setChampionsList(names.sort());
+            setChampionsList(names.sort()); // Sorting strings is fine without callback but linter complains
         } catch (e) {
             console.error('Failed to fetch champions:', e);
         }
     };
     fetchChampions();
+  }, []);
+
+  const fetchGlobalStats = async () => {
+      const stats = await getGameStats();
+      if (stats) setGlobalStats(stats);
+  };
+
+  useEffect(() => {
     fetchGlobalStats();
 
     // Poll for updates every 30 seconds
@@ -76,18 +89,19 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 if (parsed.foundSlots) setFoundSlots(parsed.foundSlots);
                 if (parsed.wrongGuesses) setWrongGuesses(parsed.wrongGuesses);
                 if (parsed.attempts) setAttempts(parsed.attempts);
+                if (parsed.givenUp) setGivenUp(parsed.givenUp);
+                if (parsed.revealedNames) setRevealedNames(parsed.revealedNames);
                 
                 if (parsed.solved) {
                     setPhase('won');
-                    setMessage('Welcome back! You already solved this.');
+                    setMessage(parsed.givenUp ? 'Game Over. The solution was revealed.' : 'Welcome back! You already solved this.');
                     setZoomLevel(1.0);
                     fetchGlobalStats();
                 } else if (parsed.phase === 'phase2') {
                     setPhase('phase2');
                     setZoomLevel(1.0);
                 } else {
-                    // Phase 1, restore zoom if saved, or calculate based on mistakes?
-                    // For now let's respect the saved zoom or default
+                    // Phase 1, restore zoom IFF not solved/given up
                     if (parsed.zoomLevel) setZoomLevel(parsed.zoomLevel);
                 }
             }
@@ -96,40 +110,6 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
         }
     }
   }, [initialData]);
-
-  const fetchGlobalStats = async () => {
-      const stats = await getGameStats();
-      if (stats) setGlobalStats(stats);
-  };
-
-  // Image Loading & Canvas Drawing Logic
-  useEffect(() => {
-    if (!initialData?.imageUrl || !canvasRef.current) return;
-
-    const img = new Image();
-    img.crossOrigin = 'anonymous'; // Important for manipulating external images
-    img.src = initialData.imageUrl;
-
-    img.onload = () => {
-      imageRef.current = img;
-      setImgDimensions({ width: img.naturalWidth, height: img.naturalHeight });
-      setImageLoaded(true);
-      // drawCanvas will be triggered by effect dependency on imageLoaded and imgDimensions
-    };
-
-    img.onerror = (e) => {
-      console.error("Failed to load image:", e);
-      setMessage("Error loading puzzle result.");
-      setImageLoaded(false);
-    };
-  }, [initialData]);
-
-  // Redraw when zoom changes
-  useEffect(() => {
-    if (imageLoaded) {
-      drawCanvas();
-    }
-  }, [zoomLevel, imageLoaded, phase, imgDimensions]);
 
   const drawCanvas = () => {
     const canvas = canvasRef.current;
@@ -164,6 +144,36 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
     
     ctx.restore();
   };
+
+  // Image Loading & Canvas Drawing Logic
+  useEffect(() => {
+    if (!initialData?.imageUrl || !canvasRef.current) return;
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // Important for manipulating external images
+    img.src = initialData.imageUrl;
+
+    img.onload = () => {
+      imageRef.current = img;
+      setImgDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+      setImageLoaded(true);
+      // drawCanvas will be triggered by effect dependency on imageLoaded and imgDimensions
+    };
+
+    img.onerror = (e) => {
+      console.error("Failed to load image:", e);
+      setMessage("Error loading puzzle result.");
+      setImageLoaded(false);
+    };
+  }, [initialData]);
+
+  // Redraw when zoom changes
+  useEffect(() => {
+    if (imageLoaded) {
+      drawCanvas();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoomLevel, imageLoaded, phase, imgDimensions]);
 
   // Save State Helper
   const saveState = (newState: any) => {
@@ -224,7 +234,19 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
             origin: { y: 0.7 }
         });
 
-        saveState({ foundSlots: newSlots, phase: newPhase, zoomLevel: newZoom, attempts: newAttempts });
+        // Update revealed names based on slots found
+        const updatedRevealedNames = { ...revealedNames };
+        if (result.slot === 'A') updatedRevealedNames.A = finalGuess;
+        if (result.slot === 'B') updatedRevealedNames.B = finalGuess;
+        setRevealedNames(updatedRevealedNames);
+
+        saveState({ 
+            foundSlots: newSlots, 
+            phase: newPhase, 
+            zoomLevel: newZoom, 
+            attempts: newAttempts,
+            revealedNames: updatedRevealedNames
+        });
 
       } else {
         setMessage(result.message || 'Wrong!');
@@ -297,11 +319,11 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
   };
 
   return (
-    <div className="flex flex-col items-center gap-8 w-full max-w-4xl mx-auto p-4">
+    <div className="flex flex-col items-center gap-2 md:gap-4 w-full max-w-4xl mx-auto p-2 md:p-4">
         {/* Header */}
-        <div className="text-center space-y-2">
-            <h1 className="text-4xl font-bold bg-linear-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
-                FUSION UNIVERSE
+        <div className="text-center space-y-1 md:space-y-2">
+            <h1 className="text-2xl md:text-3xl font-bold bg-linear-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
+                LoL FUSION
             </h1>
             <p className="text-gray-400">
                 {phase === 'phase1' 
@@ -309,13 +331,22 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                     : 'Identify the Skin Universe.'}
             </p>
             {/* Attempts Counter */}
-            <div className="text-xs font-mono text-gray-500 uppercase tracking-widest mt-2">
-                ATTEMPTS: <span className="text-purple-400 text-sm font-bold">{attempts}</span>
+            <div className="text-xs font-mono text-gray-500 uppercase tracking-widest mt-2 flex items-center justify-center gap-4">
+                <span>ATTEMPTS: <span className="text-purple-400 text-sm font-bold">{attempts}</span></span>
+                <button 
+                  onClick={() => setHistoryOpen(true)}
+                  className="flex items-center gap-1 text-gray-500 hover:text-purple-400 transition-colors"
+                >
+                    <History className="w-3 h-3" />
+                    <span className="text-[10px]">HISTORY</span>
+                </button>
             </div>
         </div>
 
+        <HistoryDrawer isOpen={historyOpen} onClose={() => setHistoryOpen(false)} />
+
         {/* Game Area */}
-        <div className="relative group w-full max-w-2xl px-4">
+        <div className="relative group w-full max-w-[50vh] md:max-w-[55vh] px-4">
             <div className="relative overflow-hidden rounded-2xl border-4 border-purple-900/50 shadow-2xl shadow-purple-900/20 bg-black aspect-square">
                 <canvas 
                     ref={canvasRef}
@@ -336,24 +367,26 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
             </div>
             
             {/* Status Indicators (Cards) */}
-            <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 flex gap-4 w-full justify-center px-4">
+            <div className="absolute -bottom-14 md:-bottom-16 left-1/2 -translate-x-1/2 flex gap-2 md:gap-4 w-full justify-center px-4">
                  <motion.div 
                     animate={foundSlots.includes('A') ? { scale: [1, 1.1, 1] } : {}}
                     transition={{ duration: 0.5 }}
-                    className={`flex flex-col items-center justify-center w-32 h-20 rounded-xl border-2 shadow-lg transition-all transform ${
+                    className={`flex flex-col items-center justify-center w-24 h-16 md:w-32 md:h-20 rounded-xl border-2 shadow-lg transition-all transform ${
                     foundSlots.includes('A') 
                     ? 'bg-green-900/80 border-green-500' 
                     : 'bg-black/80 border-purple-800/50'
                  }`}>
-                    {foundSlots.includes('A') ? (
+                    {foundSlots.includes('A') || revealedNames.A ? (
                          <div className="text-center">
                             <span className="text-xs text-green-400 font-bold tracking-widest uppercase">Champion A</span>
-                            <p className="text-white font-bold text-sm leading-tight mt-1">Found</p>
+                            <p className="text-white font-bold text-sm leading-tight mt-1">
+                                {revealedNames.A || 'Found'}
+                            </p>
                          </div>
                     ) : (
                          <div className="text-center">
                             <span className="text-xs text-gray-500 font-bold tracking-widest uppercase">Champion A</span>
-                            <p className="text-purple-500/50 font-bold text-2xl mt-1">?</p>
+                            <p className="text-purple-500/50 font-bold text-xl md:text-2xl mt-1">?</p>
                          </div>
                     )}
                  </motion.div>
@@ -361,20 +394,22 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                  <motion.div 
                     animate={foundSlots.includes('B') ? { scale: [1, 1.1, 1] } : {}}
                     transition={{ duration: 0.5 }}
-                    className={`flex flex-col items-center justify-center w-32 h-20 rounded-xl border-2 shadow-lg transition-all transform ${
+                    className={`flex flex-col items-center justify-center w-24 h-16 md:w-32 md:h-20 rounded-xl border-2 shadow-lg transition-all transform ${
                     foundSlots.includes('B') 
                     ? 'bg-green-900/80 border-green-500' 
                     : 'bg-black/80 border-purple-800/50'
                  }`}>
-                    {foundSlots.includes('B') ? (
+                    {foundSlots.includes('B') || revealedNames.B ? (
                          <div className="text-center">
                              <span className="text-xs text-green-400 font-bold tracking-widest uppercase">Champion B</span>
-                             <p className="text-white font-bold text-sm leading-tight mt-1">Found</p>
+                             <p className="text-white font-bold text-sm leading-tight mt-1">
+                                {revealedNames.B || 'Found'}
+                             </p>
                          </div>
                     ) : (
                          <div className="text-center">
                              <span className="text-xs text-gray-500 font-bold tracking-widest uppercase">Champion B</span>
-                             <p className="text-purple-500/50 font-bold text-2xl mt-1">?</p>
+                             <p className="text-purple-500/50 font-bold text-xl md:text-2xl mt-1">?</p>
                          </div>
                     )}
                  </motion.div>
@@ -382,10 +417,10 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
         </div>
 
         {/* Spacer for the absolute positioned cards */}
-        <div className="h-12" />
+        <div className="h-8 md:h-10" />
 
         {/* Controls */}
-        <div className="w-full max-w-md mt-6 space-y-4">
+        <div className="w-full max-w-md mt-1 md:mt-4 space-y-2 md:space-y-3">
             {/* Global Completion Count Display (Loldle style) */}
             {globalStats && globalStats.total > 0 && (
                 <div className="text-center animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -396,46 +431,85 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
 
             {phase === 'won' ? (
                 <div ref={resultsRef} className="space-y-6 animate-in slide-in-from-bottom-10 fade-in duration-700">
-                    <div className="text-center p-6 bg-green-500/20 rounded-xl border border-green-500/50 shadow-green-900/50 shadow-xl">
-                        <h2 className="text-3xl font-extrabold text-green-400 mb-2">VICTORY!</h2>
-                        <p className="text-lg">You solved it in <span className="font-bold text-white text-xl">{attempts}</span> tries.</p>
+                    <div className={`text-center p-6 rounded-xl border shadow-xl ${
+                        givenUp 
+                        ? 'bg-red-900/20 border-red-500/50 shadow-red-900/20' 
+                        : 'bg-green-500/20 border-green-500/50 shadow-green-900/50'
+                    }`}>
+                        <h2 className={`text-3xl font-extrabold mb-2 ${givenUp ? 'text-red-500' : 'text-green-400'}`}>
+                            {givenUp ? 'GAME OVER' : 'VICTORY!'}
+                        </h2>
+                        {!givenUp && (
+                            <p className="text-lg">You solved it in <span className="font-bold text-white text-xl">{attempts}</span> tries.</p>
+                        )}
                         <p className="text-xs text-gray-400 mt-2">Come back tomorrow for a new fusion.</p>
                     </div>
 
-                    {globalStats && (
-                         <div className="p-4 bg-gray-900/80 rounded-xl border border-gray-800">
-                            <h3 className="text-sm text-gray-400 uppercase tracking-widest font-bold mb-4 text-center">Global Stats</h3>
-                            <div className="space-y-2">
-                                {/* Simple Histogram */}
-                                {Object.entries(globalStats.distribution)
-                                    .sort((a, b) => Number(a[0]) - Number(b[0]))
-                                    .map(([count, numUsers]) => {
-                                        const n = Number(numUsers);
-                                        const c = Number(count);
-                                        const isMyScore = c === attempts;
-                                        // Calculate percentage relative to max for bar width? Or total?
-                                        // Let's use relative to Total if available, else Max.
-                                        const percentage = Math.min(100, (n / globalStats.total) * 100);
-                                        
-                                        return (
-                                            <div key={count} className={`flex items-center gap-2 text-xs ${isMyScore ? 'text-green-400 font-bold' : 'text-gray-500'}`}>
-                                                <span className="w-4 text-right">{count}</span>
-                                                <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
-                                                    <div 
-                                                        className={`h-full rounded-full ${isMyScore ? 'bg-green-500' : 'bg-gray-600'}`} 
-                                                        style={{ width: `${percentage}%` }}
-                                                    />
-                                                </div>
-                                                <span className="w-6 text-right">{n}</span>
-                                            </div>
-                                        );
-                                })}
-                            </div>
-                            <div className="text-center mt-4 text-xs text-gray-600">
-                                Total Solvers: {globalStats.total}
-                            </div>
-                         </div>
-                    )}
+                     {globalStats && (
+                          <div className="p-5 bg-gray-900/90 rounded-xl border border-gray-800 shadow-xl backdrop-blur-xs">
+                             <h3 className="text-sm text-gray-400 uppercase tracking-widest font-bold mb-6 text-center">Global Guess Distribution</h3>
+                             
+                             <div className="flex items-end justify-center h-48 mb-2 px-2 gap-px">
+                                 {(() => {
+                                      // Calculate dynamic max range
+                                      const distributionKeys = Object.keys(globalStats.distribution).map(Number);
+                                      const maxKey = Math.max(...distributionKeys, 0);
+                                      // Ensure range covers the user's attempts and at least a reasonable baseline (e.g. 6 or 8)
+                                      const rangeMax = Math.max(maxKey, attempts, 8);
+                                      
+                                      return Array.from({ length: rangeMax }, (_, i) => i + 1).map((attemptCount) => {
+                                          // Get value or 0
+                                      const numUsers = Number(globalStats.distribution[attemptCount] || 0);
+                                      const maxVal = Math.max(...Object.values(globalStats.distribution).map(n => Number(n))) || 1;
+                                      const isMyScore = attemptCount === attempts;
+                                                                           
+                                      // Calculate height relative to max
+                                      // Min height 0 for empty ones? No, user wants histogram.
+                                      // If 0, height 0.
+                                      const percentage = numUsers === 0 ? 0 : Math.max(5, (numUsers / maxVal) * 100); 
+                                      
+                                      return (
+                                          <div key={attemptCount} className="group flex-1 flex flex-col items-center gap-1 h-full justify-end">
+                                              {/* Count Label (Top - Only show if > 0 or hovered) */}
+                                              <div className={`text-[10px] font-mono mb-1 transition-opacity ${
+                                                    numUsers > 0 ? (isMyScore ? 'opacity-100 font-bold text-green-400' : 'opacity-0 group-hover:opacity-100 text-gray-300') : 'opacity-0'
+                                              }`}>
+                                                  {numUsers}
+                                              </div>
+                                              
+                                              {/* Bar */}
+                                              <div className="w-full relative flex items-end" style={{ height: '100%' }}>
+                                                  <div 
+                                                      className={`w-full rounded-t-sm transition-all duration-1000 ease-out ${
+                                                          isMyScore 
+                                                              ? 'bg-linear-to-t from-green-600 to-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)] z-10' 
+                                                              : 'bg-linear-to-t from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500'
+                                                      }`} 
+                                                      style={{ height: `${percentage}%` }}
+                                                  />
+                                              </div>
+
+                                              {/* X-Axis Label (Bottom) */}
+                                              <div className={`text-[10px] font-mono border-t border-gray-700 w-full text-center pt-2 ${
+                                                    isMyScore ? 'text-green-400 font-bold' : 'text-gray-600'
+                                              }`}>
+                                                  {attemptCount}
+                                              </div>
+                                          </div>
+                                      );
+                                 })})()}
+                             </div>
+                             
+                             {/* X-Axis Title */}
+                             <div className="text-center text-[10px] uppercase tracking-widest text-gray-600 font-bold mt-2">
+                                 Attempts
+                             </div>
+       
+                             <div className="text-center mt-6 pt-4 border-t border-gray-800 text-xs text-gray-500">
+                                 Total Solvers: <span className="text-gray-300 font-bold">{globalStats.total}</span>
+                             </div>
+                          </div>
+                     )}
                 </div>
             ) : (
                 <div className="relative">
@@ -446,7 +520,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                                 value={guess}
                                 onChange={(e) => setGuess(e.target.value)}
                                 placeholder={phase === 'phase1' ? "Guess a Champion..." : "Guess the Theme..."}
-                                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 md:py-3 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                                 onKeyDown={handleKeyDown}
                             />
                             {/* Autocomplete Dropdown */}
@@ -524,13 +598,21 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                             if (confirm('Are you sure you want to give up? The solution will be revealed.')) {
                                 const sol = await getSolution();
                                 if (sol) {
+                                    setGivenUp(true);
+                                    // Set revealed names from solution
+                                    const newRevealed = { A: sol.champA, B: sol.champB };
+                                    setRevealedNames(newRevealed);
+                                    
                                     setMessage(`Solution: ${sol.champA} + ${sol.champB} (${sol.theme})`);
                                     setPhase('won'); // End game state
                                     setZoomLevel(1.0);
                                     // Save as solved (technically given up, but for now mark as done)
                                     localStorage.setItem('fusion_daily_status', JSON.stringify({
                                         date: initialData?.date,
-                                        solved: true
+                                        solved: true,
+                                        givenUp: true,
+                                        revealedNames: newRevealed,
+                                        attempts: attempts 
                                     }));
                                 }
                             }

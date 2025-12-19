@@ -12,11 +12,11 @@ export default async function Home() {
       <div className="absolute inset-0 bg-[url('https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Pantheon_0.jpg')] bg-cover bg-center opacity-20 pointer-events-none" />
       <div className="absolute inset-0 bg-linear-to-b from-black via-purple-900/10 to-black pointer-events-none" />
       
-      <div className="relative z-10 pt-10">
+      <div className="relative z-10 pt-2 md:pt-4">
         {!puzzle ? (
             <div className="flex flex-col items-center justify-center h-[80vh] text-center p-4">
                 <h1 className="text-4xl font-bold bg-linear-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent mb-4">
-                    FUSION UNIVERSE
+                    LoL FUSION
                 </h1>
                 <p className="text-gray-400 mb-8 max-w-md">
                     The daily fusion generation is pending. Please check back later or trigger the generator if you are an admin.
@@ -30,8 +30,8 @@ export default async function Home() {
         )}
       </div>
       
-      <footer className="relative z-10 text-center py-8 text-xs text-gray-600">
-        <p>Fusion Universe is a fan project. Not affiliated with Riot Games.</p>
+      <footer className="relative text-center py-8 text-xs text-gray-600">
+        <p>LoL Fusion is a fan project. Not affiliated with Riot Games.</p>
       </footer>
     </main>
   );

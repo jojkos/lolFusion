@@ -144,3 +144,44 @@ export async function getGameStats() {
         return null;
     }
 }
+
+export type HistoryItem = DailyPuzzle & { totalSolvers: number };
+
+export async function getPuzzleHistory(limit: number = 30): Promise<HistoryItem[]> {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const keys: string[] = [];
+        
+        // Generate keys for past 'limit' days
+        for (let i = 1; i <= limit; i++) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            keys.push(`puzzle:${dateStr}`);
+        }
+
+        if (keys.length === 0) return [];
+
+        // Batch fetch puzzles
+        const puzzles = await kv.mget<DailyPuzzle[]>(...keys);
+        
+        // Filter out nulls (days without puzzles)
+        const validPuzzles = puzzles.filter((p): p is DailyPuzzle => !!p);
+        
+        if (validPuzzles.length === 0) return [];
+
+        // Batch fetch stats for valid puzzles
+        const statKeys = validPuzzles.map(p => `stats:${p.date}:total`);
+        const stats = await kv.mget<number[]>(...statKeys);
+
+        // Combine
+        return validPuzzles.map((p, index) => ({
+            ...p,
+            totalSolvers: stats[index] || 0
+        }));
+
+    } catch (error) {
+        console.error('Failed to get history:', error);
+        return [];
+    }
+}

@@ -13,11 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Fusion Universe | LoL Daily Puzzle",
+  title: "LoL Fusion | Daily Champion Puzzle",
   description: "Daily League of Legends fusion puzzle. Guess the two combined champions and the skin theme.",
   keywords: ["League of Legends", "Puzzle", "Daily Game", "Fusion", "LoLle", "Wordle"],
   openGraph: {
-    title: "Fusion Universe",
+    title: "LoL Fusion",
     description: "Can you identify the fused League of Legends champions?",
     type: "website",
   },
