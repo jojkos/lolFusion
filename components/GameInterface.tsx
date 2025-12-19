@@ -105,7 +105,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
         setMessage(result.message || 'Correct!');
         setGuess('');
         
-        let newPhase = phase;
+        let newPhase: 'phase1' | 'phase2' | 'won' = phase;
         let newZoom = zoomLevel;
 
         if (result.gameStatus === 'phase2') {
