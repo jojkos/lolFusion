@@ -28,7 +28,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
   // New State
   const [wrongGuesses, setWrongGuesses] = useState<string[]>([]);
   const [attempts, setAttempts] = useState(0);
-  const [globalStats, setGlobalStats] = useState<{ distribution: Record<string, string>, total: number } | null>(null);
+  const [globalStats, setGlobalStats] = useState<{ distribution: Record<string, unknown>, total: number } | null>(null);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
