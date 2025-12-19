@@ -21,6 +21,9 @@ export const metadata: Metadata = {
     description: "Can you identify the fused League of Legends champions?",
     type: "website",
   },
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({

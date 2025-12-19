@@ -167,15 +167,18 @@ export async function GET(request: NextRequest) {
         console.error('Gemini refinement failed:', e);
     }
 
-    // 5. Image Generation (Pollinations.ai "nanobanana-pro")
+    // 5. Image Generation (Pollinations.ai )
     try {
         const finalPrompt = encodeURIComponent(refinedPrompt.slice(0, 1000));
         const apiKey = process.env.POLLINATIONS_API_KEY || '';
-        // Construct URL
-        let imageUrl = `https://image.pollinations.ai/prompt/${finalPrompt}?width=2560&height=1440&quality=hd&model=nanobanana-pro&seed=${Math.floor(Math.random() * 1000)}&nologo=true`;
+        const seed = Math.floor(Math.random() * 1000000);
+        
+        // Construct URL as per latest API spec: gen.pollinations.ai/image/{prompt}
+        // Using flux (default/high-quality), 2560x1440 resolution, and quality=hd
+        let imageUrl = `https://gen.pollinations.ai/image/${finalPrompt}?width=2560&height=1440&quality=hd&model=nanobanana-pro&seed=${seed}&nologo=true&enhance=false`;
         
         if (apiKey) {
-            imageUrl += `&api_key=${apiKey}`; 
+            imageUrl += `&key=${apiKey}`; 
         }
 
         console.log('Fetching image from Pollinations...');
