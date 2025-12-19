@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Fusion Universe
 
-## Getting Started
+Daily League of Legends Champion Fusion Puzzle Game.
 
-First, run the development server:
+## Setup
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. **Install Dependencies**:
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+   ```bash
+   npm install
+   ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+2. **Environment Variables**:
+   Copy `.env.example` to `.env.local` and fill in the values:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   - `GEMINI_API_KEY`: Google Gemini API Key.
+   - `BLOB_READ_WRITE_TOKEN`: Vercel Blob Token.
+   - `KV_REST_API_URL` & `KV_REST_API_TOKEN`: Vercel KV Credentials.
+   - `CRON_SECRET`: Random string for securing cron jobs.
+   - `ADMIN_SECRET`: Secret for manual generation.
 
-## Learn More
+   > **Note on Vercel KV**: The environment variables `KV_REST_API_URL` and `KV_REST_API_TOKEN` are **implicitly required** by the `@vercel/kv` SDK. You do not need to import them manually in your code, but they MUST exist in `.env.local` for the library to connect to your database.
 
-To learn more about Next.js, take a look at the following resources:
+3. **How to get Vercel KV Credentials**:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   - Go to your Vercel Project Dashboard.
+   - Click **Storage**.
+   - If you see "Vercel KV" (or just "KV"), create it.
+   - **Important**: If you don't see "KV" purely listed, look under **Marketplace Database Providers** and select **Upstash for Redis**. Vercel KV is powered by Upstash.
+   - Once created, go to the **.env.local** tab in the database settings (or "Quickstart" section).
+   - Copy `KV_REST_API_URL` and `KV_REST_API_TOKEN` into your local `.env.local` file.
+   - Do the same for Vercel Blob (`BLOB_READ_WRITE_TOKEN`).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+4. **Run Locally**:
 
-## Deploy on Vercel
+   ```bash
+   npm run dev
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+5. **Local E2E Testing**:
+   Since the app relies on cloud services (Blob/KV/Cron), to test the full flow locally:
+   1. Ensure your `.env.local` has valid production or development credentials for Vercel KV and Blob.
+   2. Start the server: `npm run dev`.
+   3. **Generate a Puzzle**: Manually trigger the cron route via your browser or curl:
+      ```bash
+      curl "http://localhost:3000/api/cron/generate?secret=YOUR_ADMIN_SECRET"
+      ```
+   4. **Play**: Go to `http://localhost:3000`. You should see the generated puzzle.
+   5. **Note**: Locally, cron jobs don't run automatically; you must trigger the endpoint manually as shown above.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+
+Deploy to Vercel:
+
+1. Link project to Vercel.
+2. Add Storage (Blob and KV).
+3. Set Environment Variables in Vercel.
+4. The Cron Job is automatically configured via `vercel.json` to run at midnight UTC.
+
+## Tech Stack
+
+- Next.js 14 (App Router)
+- Tailwind CSS
+- Vercel KV & Blob
+- Google Gemini API (Imaging)
