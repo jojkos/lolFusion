@@ -18,13 +18,13 @@ export default function HistoryDrawer({ isOpen, onClose }: HistoryDrawerProps) {
 
   useEffect(() => {
     if (isOpen && history.length === 0) {
-        const fetchHistory = async () => {
-            setLoading(true);
-            const data = await getPuzzleHistory();
-            setHistory(data);
-            setLoading(false);
-        };
-        fetchHistory();
+      const fetchHistory = async () => {
+        setLoading(true);
+        const data = await getPuzzleHistory();
+        setHistory(data);
+        setLoading(false);
+      };
+      fetchHistory();
     }
   }, [isOpen, history.length]);
 
@@ -77,33 +77,38 @@ export default function HistoryDrawer({ isOpen, onClose }: HistoryDrawerProps) {
                 history.map((item) => (
                   <div key={item.date} className="bg-gray-900 rounded-xl overflow-hidden border border-gray-800 hover:border-purple-500/50 transition-colors">
                     {/* Image Header */}
-                    <div className="relative aspect-video">
-                        <Image 
-                            src={item.imageUrl} 
-                            alt={`${item.champA} + ${item.champB}`}
-                            fill
-                            className="object-cover"
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        />
-                        <div className="absolute inset-0 bg-linear-to-t from-black/90 to-transparent flex items-end p-3 z-10">
-                             <div className="w-full">
-                                <span className="text-xs font-mono text-gray-400 mb-1 block">{item.date}</span>
-                                <h3 className="text-lg font-bold text-white leading-tight">
-                                    {item.champA} <span className="text-purple-500">+</span> {item.champB}
-                                </h3>
-                             </div>
+                    <div
+                      className="relative aspect-video cursor-pointer"
+                      onClick={() => window.open(item.imageUrl, '_blank')}
+                    >
+                      <Image
+                        src={item.imageUrl}
+                        alt={`${item.champA} + ${item.champB}`}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
+                      <div className="absolute inset-0 bg-linear-to-t from-black/90 to-transparent flex items-end p-3 z-10">
+                        <div className="w-full">
+                          <span className="text-xs font-mono text-gray-400 mb-1 block">
+                            {new Date(item.date).toLocaleDateString()}
+                          </span>
+                          <h3 className="text-lg font-bold text-white leading-tight">
+                            {item.champA} <span className="text-purple-500">+</span> {item.champB}
+                          </h3>
                         </div>
+                      </div>
                     </div>
                     {/* Footer Info */}
                     <div className="p-3 flex items-center justify-between text-xs bg-gray-950/50">
-                        <div className="flex items-center gap-1.5 text-gray-400">
-                            <span className="w-2 h-2 rounded-full bg-pink-500"></span>
-                            {item.theme}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-yellow-500 font-medium">
-                            <Users className="w-3.5 h-3.5" />
-                            {item.totalSolvers.toLocaleString()} solved
-                        </div>
+                      <div className="flex items-center gap-1.5 text-gray-400">
+                        <span className="w-2 h-2 rounded-full bg-pink-500"></span>
+                        {item.theme}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-yellow-500 font-medium">
+                        <Users className="w-3.5 h-3.5" />
+                        {item.totalSolvers.toLocaleString()} solved
+                      </div>
                     </div>
                   </div>
                 ))
