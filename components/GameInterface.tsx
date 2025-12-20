@@ -350,7 +350,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
 
             {/* Game Area */}
             <div className="relative group w-full max-w-[50vh] md:max-w-[55vh] px-4">
-                <div className="relative overflow-hidden rounded-2xl border-4 border-purple-900/50 shadow-2xl shadow-purple-900/20 bg-black aspect-square">
+                <div className={`relative overflow-hidden rounded-2xl border-4 border-purple-900/50 shadow-2xl shadow-purple-900/20 bg-black ${phase === 'won' ? '' : 'aspect-square'}`}>
                     <canvas
                         ref={canvasRef}
                         onClick={() => {
@@ -358,8 +358,8 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                                 window.open(initialData.imageUrl, '_blank');
                             }
                         }}
-                        className={`block w-full h-full object-cover transition-all duration-700 ease-out ${canOpenFullImage ? 'cursor-pointer hover:opacity-90' : ''
-                            }`}
+                        className={`block w-full transition-all duration-700 ease-out ${canOpenFullImage ? 'cursor-pointer hover:opacity-90' : ''
+                            } ${phase === 'won' ? 'h-auto' : 'h-full object-cover'}`}
                     />
                     {!imageLoaded && (
                         <div className="absolute inset-0 flex items-center justify-center">
