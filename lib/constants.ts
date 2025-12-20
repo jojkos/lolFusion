@@ -1,18 +1,15 @@
-// Champions are now fetched dynamically from Riot API
 export const THEMES = [
   "Blood Moon",
   "Coven",
-  "Cyberpop",
   "Dark Star",
   "Dawnbringer",
-  "Demacia Vice",
+  "Nightbringer",
   "Dragonmancer",
   "Elderwood",
   "Empyrean",
   "High Noon",
   "Inkshadow",
   "Mecha Kingdoms",
-  "Nightbringer",
   "Odyssey",
   "Omega Squad",
   "Pool Party",
@@ -25,4 +22,8 @@ export const THEMES = [
   "Spirit Blossom",
   "Star Guardian",
   "Winterblessed",
+  "Arcade",
+  "Battle Academia",
+  "Cafe Cuties",
+  "Space Groove",
 ];
