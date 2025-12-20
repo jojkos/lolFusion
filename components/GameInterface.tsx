@@ -31,7 +31,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
     const [wrongGuesses, setWrongGuesses] = useState<string[]>([]);
     const [attempts, setAttempts] = useState(0);
     const [givenUp, setGivenUp] = useState(false);
-    const [revealedNames, setRevealedNames] = useState<{ A: string | null; B: string | null }>({ A: null, B: null });
+    const [revealedNames, setRevealedNames] = useState<{ A: string | null; B: string | null; Theme: string | null }>({ A: null, B: null, Theme: null });
 
     const [globalStats, setGlobalStats] = useState<{ distribution: Record<string, unknown>, total: number } | null>(null);
 
@@ -238,6 +238,8 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 const updatedRevealedNames = { ...revealedNames };
                 if (result.slot === 'A') updatedRevealedNames.A = finalGuess;
                 if (result.slot === 'B') updatedRevealedNames.B = finalGuess;
+                // Ensure Theme is present to match new type
+                if (!updatedRevealedNames.Theme) updatedRevealedNames.Theme = null;
                 setRevealedNames(updatedRevealedNames);
 
                 saveState({
@@ -272,6 +274,9 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                     origin: { y: 0.6 }
                 });
                 saveState({ solved: true, phase: 'won', zoomLevel: 1.0, attempts: newAttempts });
+
+                // Update revealedNames with the guessed theme
+                setRevealedNames(prev => ({ ...prev, Theme: finalGuess }));
 
                 // Submit Stats
                 await submitGameStats(newAttempts);
@@ -326,7 +331,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                     LoL FUSION
                 </h1>
                 <p className="text-gray-400">
-                    First identify the two fused champions, then the Skin Universe.
+                    First identify the two fused champions, then the skin universe.
                 </p>
                 {/* Attempts Counter */}
                 <div className="text-xs font-mono text-gray-500 uppercase tracking-widest mt-2 flex items-center justify-center gap-4">
@@ -364,25 +369,25 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 </div>
 
                 {/* Status Indicators (Cards) */}
-                <div className="absolute -bottom-14 md:-bottom-16 left-1/2 -translate-x-1/2 flex gap-2 md:gap-4 w-full justify-center px-4">
+                <div className="absolute -bottom-14 md:-bottom-16 left-1/2 -translate-x-1/2 flex gap-1.5 md:gap-4 w-full justify-center px-1 md:px-4">
                     <motion.div
                         animate={foundSlots.includes('A') ? { scale: [1, 1.1, 1] } : {}}
                         transition={{ duration: 0.5 }}
-                        className={`flex flex-col items-center justify-center w-24 h-16 md:w-32 md:h-20 rounded-xl border-2 shadow-lg transition-all transform ${foundSlots.includes('A')
-                                ? 'bg-green-900/80 border-green-500'
-                                : 'bg-black/80 border-purple-800/50'
+                        className={`flex flex-col items-center justify-center w-20 h-14 md:w-32 md:h-20 rounded-xl border-2 shadow-lg transition-all transform ${foundSlots.includes('A')
+                            ? 'bg-green-900/80 border-green-500'
+                            : 'bg-black/80 border-purple-800/50'
                             }`}>
                         {foundSlots.includes('A') || revealedNames.A ? (
                             <div className="text-center">
-                                <span className="text-xs text-green-400 font-bold tracking-widest uppercase">Champion A</span>
-                                <p className="text-white font-bold text-sm leading-tight mt-1">
+                                <span className="text-[8px] md:text-xs text-green-400 font-bold tracking-widest uppercase block mb-0.5">Champion A</span>
+                                <p className="text-white font-bold text-xs md:text-sm leading-tight px-1 truncate max-w-[4.5rem] md:max-w-none">
                                     {revealedNames.A || 'Found'}
                                 </p>
                             </div>
                         ) : (
                             <div className="text-center">
-                                <span className="text-xs text-gray-500 font-bold tracking-widest uppercase">Champion A</span>
-                                <p className="text-purple-500/50 font-bold text-xl md:text-2xl mt-1">?</p>
+                                <span className="text-[8px] md:text-xs text-gray-500 font-bold tracking-widest uppercase block mb-0.5">Champion A</span>
+                                <p className="text-purple-500/50 font-bold text-lg md:text-2xl">?</p>
                             </div>
                         )}
                     </motion.div>
@@ -390,21 +395,44 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                     <motion.div
                         animate={foundSlots.includes('B') ? { scale: [1, 1.1, 1] } : {}}
                         transition={{ duration: 0.5 }}
-                        className={`flex flex-col items-center justify-center w-24 h-16 md:w-32 md:h-20 rounded-xl border-2 shadow-lg transition-all transform ${foundSlots.includes('B')
-                                ? 'bg-green-900/80 border-green-500'
-                                : 'bg-black/80 border-purple-800/50'
+                        className={`flex flex-col items-center justify-center w-20 h-14 md:w-32 md:h-20 rounded-xl border-2 shadow-lg transition-all transform ${foundSlots.includes('B')
+                            ? 'bg-green-900/80 border-green-500'
+                            : 'bg-black/80 border-purple-800/50'
                             }`}>
                         {foundSlots.includes('B') || revealedNames.B ? (
                             <div className="text-center">
-                                <span className="text-xs text-green-400 font-bold tracking-widest uppercase">Champion B</span>
-                                <p className="text-white font-bold text-sm leading-tight mt-1">
+                                <span className="text-[8px] md:text-xs text-green-400 font-bold tracking-widest uppercase block mb-0.5">Champion B</span>
+                                <p className="text-white font-bold text-xs md:text-sm leading-tight px-1 truncate max-w-[4.5rem] md:max-w-none">
                                     {revealedNames.B || 'Found'}
                                 </p>
                             </div>
                         ) : (
                             <div className="text-center">
-                                <span className="text-xs text-gray-500 font-bold tracking-widest uppercase">Champion B</span>
-                                <p className="text-purple-500/50 font-bold text-xl md:text-2xl mt-1">?</p>
+                                <span className="text-[8px] md:text-xs text-gray-500 font-bold tracking-widest uppercase block mb-0.5">Champion B</span>
+                                <p className="text-purple-500/50 font-bold text-lg md:text-2xl">?</p>
+                            </div>
+                        )}
+                    </motion.div>
+
+                    <motion.div
+                        animate={phase === 'won' ? { scale: [1, 1.1, 1] } : {}}
+                        transition={{ duration: 0.5 }}
+                        className={`flex flex-col items-center justify-center w-20 h-14 md:w-32 md:h-20 rounded-xl border-2 shadow-lg transition-all transform ${revealedNames.Theme
+                            ? 'bg-green-900/80 border-green-500'
+                            : 'bg-black/80 border-purple-800/50'
+                            }`}
+                    >
+                        {revealedNames.Theme ? (
+                            <div className="text-center">
+                                <span className="text-[8px] md:text-xs text-green-400 font-bold tracking-widest uppercase block mb-0.5">Skin</span>
+                                <p className="text-white font-bold text-xs md:text-sm leading-tight px-1 truncate max-w-[4.5rem] md:max-w-none">
+                                    {revealedNames.Theme}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="text-center">
+                                <span className="text-[8px] md:text-xs text-gray-500 font-bold tracking-widest uppercase block mb-0.5">Skin</span>
+                                <p className="text-purple-500/50 font-bold text-lg md:text-2xl">?</p>
                             </div>
                         )}
                     </motion.div>
@@ -427,8 +455,8 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 {phase === 'won' ? (
                     <div ref={resultsRef} className="space-y-6 animate-in slide-in-from-bottom-10 fade-in duration-700">
                         <div className={`text-center p-6 rounded-xl border shadow-xl ${givenUp
-                                ? 'bg-red-900/20 border-red-500/50 shadow-red-900/20'
-                                : 'bg-green-500/20 border-green-500/50 shadow-green-900/50'
+                            ? 'bg-red-900/20 border-red-500/50 shadow-red-900/20'
+                            : 'bg-green-500/20 border-green-500/50 shadow-green-900/50'
                             }`}>
                             <h2 className={`text-3xl font-extrabold mb-2 ${givenUp ? 'text-red-500' : 'text-green-400'}`}>
                                 {givenUp ? 'GAME OVER' : 'VICTORY!'}
@@ -468,8 +496,8 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                                                     <div className="w-full relative flex items-end" style={{ height: '100%' }}>
                                                         <div
                                                             className={`w-full rounded-t-sm transition-all duration-1000 ease-out flex items-end justify-center pb-1 ${isMyScore
-                                                                    ? 'bg-linear-to-t from-green-600 to-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)] z-10'
-                                                                    : 'bg-linear-to-t from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500'
+                                                                ? 'bg-linear-to-t from-green-600 to-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)] z-10'
+                                                                : 'bg-linear-to-t from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500'
                                                                 }`}
                                                             style={{ height: `${percentage}%` }}
                                                         >
@@ -592,7 +620,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                                     if (sol) {
                                         setGivenUp(true);
                                         // Set revealed names from solution
-                                        const newRevealed = { A: sol.champA, B: sol.champB };
+                                        const newRevealed = { A: sol.champA, B: sol.champB, Theme: sol.theme };
                                         setRevealedNames(newRevealed);
 
                                         setMessage(`Solution: ${sol.champA} + ${sol.champB} (${sol.theme})`);
