@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { Loader2, History } from 'lucide-react';
+import { Loader2, History, Maximize2 } from 'lucide-react';
+import Select, { StylesConfig } from 'react-select';
 import { THEMES } from '@/lib/constants';
 import { submitChampionGuess, submitThemeGuess, getSolution, submitGameStats, getGameStats } from '@/app/actions';
 import HistoryDrawer from './HistoryDrawer';
@@ -34,6 +35,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
     const [revealedNames, setRevealedNames] = useState<{ A: string | null; B: string | null; Theme: string | null }>({ A: null, B: null, Theme: null });
 
     const [globalStats, setGlobalStats] = useState<{ distribution: Record<string, unknown>, total: number } | null>(null);
+    const [wrongGuessesExpanded, setWrongGuessesExpanded] = useState(false);
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const resultsRef = useRef<HTMLDivElement>(null);
@@ -296,31 +298,62 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
         setLoading(false);
     };
 
-    // Autocomplete Logic
-    const options = phase === 'phase1' ? championsList : THEMES;
-
-    // Filter out wrong guesses from options
-    const availableOptions = options.filter(opt => !wrongGuesses.includes(opt));
-
-    const filteredOptions = guess === ''
-        ? []
-        : availableOptions.filter((opt: string) =>
-            opt.toLowerCase().includes(guess.toLowerCase())
-        ).slice(0, 5);
+    // React-Select Options
+    const rawOptions = phase === 'phase1' ? championsList : THEMES;
+    const availableOptions = rawOptions.filter(opt => !wrongGuesses.includes(opt));
+    const selectOptions = availableOptions.map(opt => ({ value: opt, label: opt }));
 
     const canOpenFullImage = zoomLevel <= 1.0;
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            // Immediate submission logic
-            if (guess && filteredOptions.length > 0 && !options.includes(guess)) {
-                // Submit the first option immediately
-                handleGuess(filteredOptions[0]);
-                return;
-            }
-            handleGuess();
-        }
+    // React-Select custom styles for dark theme
+    const selectStyles: StylesConfig<{ value: string; label: string }, false> = {
+        control: (base, state) => ({
+            ...base,
+            backgroundColor: '#111827',
+            borderColor: state.isFocused ? '#a855f7' : '#374151',
+            borderRadius: '0.5rem',
+            padding: '0.25rem',
+            boxShadow: state.isFocused ? '0 0 0 1px #a855f7' : 'none',
+            '&:hover': { borderColor: '#a855f7' },
+        }),
+        menu: (base) => ({
+            ...base,
+            backgroundColor: '#1f2937',
+            border: '1px solid #374151',
+            borderRadius: '0.5rem',
+            marginTop: '4px',
+            zIndex: 50,
+        }),
+        menuList: (base) => ({
+            ...base,
+            padding: 0,
+            maxHeight: '200px',
+        }),
+        option: (base, state) => ({
+            ...base,
+            backgroundColor: state.isFocused ? '#374151' : state.isSelected ? '#4c1d95' : 'transparent',
+            color: '#fff',
+            cursor: 'pointer',
+            '&:active': { backgroundColor: '#4c1d95' },
+        }),
+        singleValue: (base) => ({
+            ...base,
+            color: '#fff',
+        }),
+        input: (base) => ({
+            ...base,
+            color: '#fff',
+        }),
+        placeholder: (base) => ({
+            ...base,
+            color: '#9ca3af',
+        }),
+        indicatorSeparator: () => ({ display: 'none' }),
+        dropdownIndicator: (base) => ({
+            ...base,
+            color: '#9ca3af',
+            '&:hover': { color: '#fff' },
+        }),
     };
 
     return (
@@ -330,8 +363,18 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 <h1 className="text-2xl md:text-3xl font-bold bg-linear-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
                     LoL FUSION
                 </h1>
-                <p className="text-gray-400">
-                    First identify the two fused champions, then the skin universe.
+                {/* Phase Indicator */}
+                <div className="text-sm font-medium">
+                    {phase === 'won' ? (
+                        <span className="text-green-400">🎉 Puzzle Complete!</span>
+                    ) : phase === 'phase2' ? (
+                        <span className="text-yellow-400">Step 2: Guess the Skin Theme</span>
+                    ) : (
+                        <span className="text-purple-300">Step 1: Find the Champions ({foundSlots.length}/2)</span>
+                    )}
+                </div>
+                <p className="text-gray-300 text-sm max-w-sm mx-auto leading-relaxed">
+                    Identify the two combined champions, then guess their skin universe. Wrong guesses zoom out!
                 </p>
                 {/* Attempts Counter */}
                 <div className="text-xs font-mono text-gray-500 uppercase tracking-widest mt-2 flex items-center justify-center gap-4">
@@ -365,6 +408,20 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                         <div className="absolute inset-0 flex items-center justify-center">
                             <Loader2 className="w-12 h-12 text-purple-500 animate-spin" />
                         </div>
+                    )}
+                    {/* Clickable Image Hint - shows when zoomed out */}
+                    {canOpenFullImage && imageLoaded && phase !== 'won' && (
+                        <button 
+                            type="button"
+                            className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity cursor-pointer border-0"
+                            onClick={() => initialData && window.open(initialData.imageUrl, '_blank')}
+                            aria-label="Open full size image in new tab"
+                        >
+                            <div className="flex flex-col items-center gap-2 text-white bg-black/60 px-4 py-3 rounded-xl">
+                                <Maximize2 className="w-6 h-6" />
+                                <span className="text-xs font-medium">Click for full size</span>
+                            </div>
+                        </button>
                     )}
                 </div>
 
@@ -471,53 +528,74 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                             <div className="p-5 bg-gray-900/90 rounded-xl border border-gray-800 shadow-xl backdrop-blur-xs">
                                 <h3 className="text-sm text-gray-400 uppercase tracking-widest font-bold mb-6 text-center">Global Guess Distribution</h3>
 
-                                <div className="flex items-end justify-center h-48 mb-2 px-2 gap-px">
+                                <div className="flex items-end justify-center h-48 mb-2 px-2 gap-1">
                                     {(() => {
-                                        // Calculate dynamic max range
+                                        // Minimum attempts is 3 (2 champions + 1 theme)
+                                        // Show bars 3-12 individually, 13+ grouped
                                         const distributionKeys = Object.keys(globalStats.distribution).map(Number);
                                         const maxKey = Math.max(...distributionKeys, 0);
-                                        // Ensure range covers the user's attempts and at least a reasonable baseline (e.g. 6 or 8)
-                                        const rangeMax = Math.max(maxKey, attempts, 8);
+                                        
+                                        const bars: { label: string; count: number; isMyScore: boolean }[] = [];
+                                        
+                                        // Create bars for 3-12 attempts
+                                        for (let i = 3; i <= 12; i++) {
+                                            bars.push({
+                                                label: String(i),
+                                                count: Number(globalStats.distribution[i] || 0),
+                                                isMyScore: attempts === i && !givenUp
+                                            });
+                                        }
+                                        
+                                        // Sum up all 13+ attempts
+                                        const thirteenPlusCount = distributionKeys
+                                            .filter(k => k >= 13)
+                                            .reduce((sum, k) => sum + Number(globalStats.distribution[k] || 0), 0);
+                                        
+                                        if (thirteenPlusCount > 0 || maxKey >= 13 || attempts >= 13) {
+                                            bars.push({
+                                                label: '13+',
+                                                count: thirteenPlusCount,
+                                                isMyScore: attempts >= 13 && !givenUp
+                                            });
+                                        }
+                                        
+                                        const maxVal = Math.max(...bars.map(b => b.count), 1);
 
-                                        return Array.from({ length: rangeMax }, (_, i) => i + 1).map((attemptCount) => {
-                                            // Get value or 0
-                                            const numUsers = Number(globalStats.distribution[attemptCount] || 0);
-                                            const maxVal = Math.max(...Object.values(globalStats.distribution).map(n => Number(n))) || 1;
-                                            const isMyScore = attemptCount === attempts;
-
-                                            // Calculate height relative to max
-                                            // Min height 0 for empty ones? No, user wants histogram.
-                                            // If 0, height 0.
-                                            const percentage = numUsers === 0 ? 0 : Math.max(5, (numUsers / maxVal) * 100);
+                                        return bars.map((bar) => {
+                                            const percentage = bar.count === 0 ? 0 : Math.max(8, (bar.count / maxVal) * 100);
 
                                             return (
-                                                <div key={attemptCount} className="group flex-1 flex flex-col items-center gap-1 h-full justify-end">
+                                                <div key={bar.label} className="group flex-1 flex flex-col items-center gap-1 h-full justify-end min-w-[28px]">
+                                                    {/* Your Score Label */}
+                                                    {bar.isMyScore && (
+                                                        <span className="text-[9px] text-green-400 font-bold animate-pulse">YOU</span>
+                                                    )}
                                                     {/* Bar container */}
-                                                    <div className="w-full relative flex items-end" style={{ height: '100%' }}>
+                                                    <div className="w-full relative flex items-end" style={{ height: '85%' }}>
                                                         <div
-                                                            className={`w-full rounded-t-sm transition-all duration-1000 ease-out flex items-end justify-center pb-1 ${isMyScore
-                                                                ? 'bg-linear-to-t from-green-600 to-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)] z-10'
-                                                                : 'bg-linear-to-t from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500'
+                                                            className={`w-full rounded-t transition-all duration-1000 ease-out flex items-end justify-center pb-1 ${bar.isMyScore
+                                                                ? 'bg-linear-to-t from-green-600 to-green-400 shadow-[0_0_20px_rgba(34,197,94,0.4)] ring-2 ring-green-400/50'
+                                                                : 'bg-linear-to-t from-gray-700 to-gray-600 hover:from-purple-800 hover:to-purple-600'
                                                                 }`}
-                                                            style={{ height: `${percentage}%` }}
+                                                            style={{ height: `${percentage}%`, minHeight: bar.count > 0 ? '20px' : '0' }}
                                                         >
                                                             {/* Count Label (Inside Bar) */}
-                                                            <span className={`text-[9px] font-mono leading-none ${numUsers > 0 ? 'opacity-100' : 'opacity-0'
-                                                                } ${isMyScore ? 'text-white font-bold' : 'text-gray-200'
+                                                            <span className={`text-[10px] font-mono leading-none ${bar.count > 0 ? 'opacity-100' : 'opacity-0'
+                                                                } ${bar.isMyScore ? 'text-white font-bold' : 'text-gray-200'
                                                                 }`}>
-                                                                {numUsers}
+                                                                {bar.count}
                                                             </span>
                                                         </div>
                                                     </div>
 
                                                     {/* X-Axis Label (Bottom) */}
-                                                    <div className={`text-[10px] font-mono border-t border-gray-700 w-full text-center pt-2 ${isMyScore ? 'text-green-400 font-bold' : 'text-gray-600'
+                                                    <div className={`text-[11px] font-mono border-t border-gray-700 w-full text-center pt-1 ${bar.isMyScore ? 'text-green-400 font-bold' : 'text-gray-500'
                                                         }`}>
-                                                        {attemptCount}
+                                                        {bar.label}
                                                     </div>
                                                 </div>
                                             );
-                                        })
+                                        });
                                     })()}
                                 </div>
 
@@ -535,34 +613,37 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 ) : (
                     <div className="relative">
                         <div className="flex gap-2">
-                            <div className="relative flex-1">
-                                <input
-                                    type="text"
-                                    value={guess}
-                                    onChange={(e) => setGuess(e.target.value)}
-                                    placeholder={phase === 'phase1' ? "Guess a Champion..." : "Guess the skin theme..."}
-                                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 md:py-3 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
-                                    onKeyDown={handleKeyDown}
+                            <div className="flex-1">
+                                <Select
+                                    options={selectOptions}
+                                    value={guess ? { value: guess, label: guess } : null}
+                                    onChange={(option) => {
+                                        if (option) {
+                                            setGuess(option.value);
+                                            handleGuess(option.value);
+                                        }
+                                    }}
+                                    onInputChange={(value, action) => {
+                                        if (action.action === 'input-change') {
+                                            setGuess(value);
+                                        }
+                                    }}
+                                    inputValue={guess}
+                                    placeholder={phase === 'phase1' ? "Type a Champion name..." : "Type the skin theme..."}
+                                    styles={selectStyles}
+                                    isSearchable
+                                    isClearable={false}
+                                    blurInputOnSelect
+                                    filterOption={(option, input) => {
+                                        // Normalize: remove apostrophes, hyphens, spaces and convert to lowercase
+                                        const normalize = (str: string) => str.toLowerCase().replace(/['-\s]/g, '');
+                                        return normalize(option.label).includes(normalize(input));
+                                    }}
+                                    noOptionsMessage={() => guess.length > 0 ? 'No matches' : 'Start typing...'}
+                                    isLoading={loading}
+                                    isDisabled={loading}
+                                    menuPlacement="top"
                                 />
-                                {/* Autocomplete Dropdown */}
-                                {filteredOptions.length > 0 && (
-                                    <div className="absolute bottom-full left-0 w-full mb-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl overflow-hidden z-20">
-                                        {filteredOptions.map((opt: string, idx: number) => (
-                                            <button
-                                                key={opt}
-                                                onClick={() => {
-                                                    setGuess(opt);
-                                                    handleGuess(opt); // Immediate submit
-                                                }}
-                                                className={`w-full text-left px-4 py-2 hover:bg-gray-700 transition-colors ${idx === 0 ? 'bg-gray-700' : ''
-                                                    }`}
-                                            >
-                                                {opt}
-                                                {idx === 0 && <span className="float-right text-xs text-gray-400 opacity-50">Enter</span>}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
                             <button
                                 onClick={() => handleGuess()}
@@ -578,12 +659,30 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 {/* Wrong Guesses List (Loldle Style) */}
                 {wrongGuesses.length > 0 && (
                     <div className="space-y-2">
-                        {wrongGuesses.slice().reverse().map((wrongGuess) => (
-                            <div key={wrongGuess} className="flex items-center justify-between p-3 bg-red-900/20 border border-red-900/50 rounded-lg text-red-200 animate-in slide-in-from-top-2">
-                                <span className="font-medium">{wrongGuess}</span>
-                                <span className="text-red-500/50 text-xs">Incorrect</span>
+                        {/* Show expand button if more than 3 guesses */}
+                        {wrongGuesses.length > 3 && !wrongGuessesExpanded && (
+                            <button
+                                onClick={() => setWrongGuessesExpanded(true)}
+                                className="w-full text-center text-xs text-gray-500 hover:text-gray-300 py-1 transition-colors"
+                            >
+                                Show all {wrongGuesses.length} wrong guesses ▼
+                            </button>
+                        )}
+                        {(wrongGuessesExpanded ? wrongGuesses : wrongGuesses.slice(-3)).slice().reverse().map((wrongGuess) => (
+                            <div key={wrongGuess} className="flex items-center justify-between p-2.5 bg-red-900/20 border border-red-900/50 rounded-lg text-red-200 animate-in slide-in-from-top-2">
+                                <span className="font-medium text-sm">{wrongGuess}</span>
+                                <span className="text-red-500/50 text-xs">✗</span>
                             </div>
                         ))}
+                        {/* Collapse button when expanded */}
+                        {wrongGuessesExpanded && wrongGuesses.length > 3 && (
+                            <button
+                                onClick={() => setWrongGuessesExpanded(false)}
+                                className="w-full text-center text-xs text-gray-500 hover:text-gray-300 py-1 transition-colors"
+                            >
+                                Show less ▲
+                            </button>
+                        )}
                     </div>
                 )}
 
