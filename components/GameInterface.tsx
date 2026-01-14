@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { Loader2, History, Maximize2 } from 'lucide-react';
-import Select, { StylesConfig } from 'react-select';
+import Select, { StylesConfig, SelectInstance } from 'react-select';
 import { THEMES } from '@/lib/constants';
 import { submitChampionGuess, submitThemeGuess, getSolution, submitGameStats, getGameStats } from '@/app/actions';
 import HistoryDrawer from './HistoryDrawer';
@@ -41,6 +41,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
     const resultsRef = useRef<HTMLDivElement>(null);
 
     const imageRef = useRef<HTMLImageElement | null>(null);
+    const selectRef = useRef<SelectInstance<{ value: string; label: string }, false>>(null);
 
     // Fetch Champions Dynamically (Get Names, not IDs)
     useEffect(() => {
@@ -296,6 +297,8 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
             }
         }
         setLoading(false);
+        // Ensure focus is restored after the guess is processed
+        setTimeout(() => selectRef.current?.focus(), 0);
     };
 
     // React-Select Options
@@ -615,6 +618,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                         <div className="flex gap-2">
                             <div className="flex-1">
                                 <Select
+                                    ref={selectRef}
                                     options={selectOptions}
                                     value={guess ? { value: guess, label: guess } : null}
                                     onChange={(option) => {
@@ -633,7 +637,8 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                                     styles={selectStyles}
                                     isSearchable
                                     isClearable={false}
-                                    blurInputOnSelect
+                                    blurInputOnSelect={false}
+                                    autoFocus
                                     filterOption={(option, input) => {
                                         // Normalize: remove apostrophes, hyphens, spaces and convert to lowercase
                                         const normalize = (str: string) => str.toLowerCase().replace(/['-\s]/g, '');
@@ -641,7 +646,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                                     }}
                                     noOptionsMessage={() => guess.length > 0 ? 'No matches' : 'Start typing...'}
                                     isLoading={loading}
-                                    isDisabled={loading}
+                                    isDisabled={false}
                                     menuPlacement="top"
                                 />
                             </div>
