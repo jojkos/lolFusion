@@ -189,7 +189,7 @@ export async function GET(request: NextRequest) {
 
       // Construct URL as per latest API spec: gen.pollinations.ai/image/{prompt}
       // Using flux (default/high-quality), 2560x1440 resolution, and quality=hd
-      let imageUrl = `https://gen.pollinations.ai/image/${finalPrompt}?width=2560&height=1440&quality=hd&model=nanobanana&seed=${seed}&nologo=true&enhance=false`;
+      let imageUrl = `https://gen.pollinations.ai/image/${finalPrompt}?width=2560&height=1440&quality=hd&model=klein-large&seed=${seed}&nologo=true&enhance=false`;
 
       if (apiKey) {
         imageUrl += `&key=${apiKey}`;
