@@ -4,6 +4,8 @@ import { put } from "@vercel/blob";
 import { GoogleGenAI } from "@google/genai";
 import { THEMES } from "@/lib/constants";
 
+const IMAGE_MODEL = "imagen-4";
+
 const genAI = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
@@ -188,8 +190,8 @@ export async function GET(request: NextRequest) {
       const seed = Math.floor(Math.random() * 1000000);
 
       // Construct URL as per latest API spec: gen.pollinations.ai/image/{prompt}
-      // Using flux (default/high-quality), 2560x1440 resolution, and quality=hd
-      let imageUrl = `https://gen.pollinations.ai/image/${finalPrompt}?width=2560&height=1440&quality=hd&model=klein-large&seed=${seed}&nologo=true&enhance=false`;
+      // Using high-quality settings, 2560x1440 resolution, and quality=hd
+      let imageUrl = `https://gen.pollinations.ai/image/${finalPrompt}?width=2560&height=1440&quality=hd&model=${IMAGE_MODEL}&seed=${seed}&nologo=true&enhance=false`;
 
       if (apiKey) {
         imageUrl += `&key=${apiKey}`;
