@@ -187,11 +187,10 @@ export async function GET(request: NextRequest) {
     try {
       const finalPrompt = encodeURIComponent(refinedPrompt.slice(0, 1000));
       const apiKey = process.env.POLLINATIONS_API_KEY || "";
-      const seed = Math.floor(Math.random() * 1000000);
+      const seed = 1;
 
       // Construct URL as per latest API spec: gen.pollinations.ai/image/{prompt}
-      // Using high-quality settings, 2560x1440 resolution, and quality=hd
-      let imageUrl = `https://gen.pollinations.ai/image/${finalPrompt}?width=2560&height=1440&quality=hd&model=${IMAGE_MODEL}&seed=${seed}&nologo=true&enhance=false`;
+      let imageUrl = `https://gen.pollinations.ai/image/${finalPrompt}?model=${IMAGE_MODEL}&width=2560&height=1440&quality=hd&seed=${seed}`;
 
       if (apiKey) {
         imageUrl += `&key=${apiKey}`;
