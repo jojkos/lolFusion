@@ -4,7 +4,7 @@ import { put } from "@vercel/blob";
 import { GoogleGenAI } from "@google/genai";
 import { THEMES } from "@/lib/constants";
 
-const IMAGE_MODEL = "gptimage";
+const IMAGE_MODEL = "klein";
 
 const genAI = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
