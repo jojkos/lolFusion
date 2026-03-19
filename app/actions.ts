@@ -162,19 +162,23 @@ export async function getPuzzleHistory(): Promise<HistoryItem[]> {
           (p: DailyPuzzle | null): p is DailyPuzzle => !!p,
         );
 
-        if (validPuzzles.length === 0) return [];
+        // Filter out today's puzzle — history should only show past days
+        const today = new Date().toISOString().split('T')[0];
+        const pastPuzzles = validPuzzles.filter((p: DailyPuzzle) => p.date < today);
 
         // Sort puzzles by date descending (most recent first)
-        validPuzzles.sort((a: DailyPuzzle, b: DailyPuzzle) =>
+        pastPuzzles.sort((a: DailyPuzzle, b: DailyPuzzle) =>
           b.date.localeCompare(a.date),
         );
 
+        if (pastPuzzles.length === 0) return [];
+
         // Batch fetch stats for valid puzzles
-        const statKeys = validPuzzles.map((p: DailyPuzzle) => `stats:${p.date}:total`);
+        const statKeys = pastPuzzles.map((p: DailyPuzzle) => `stats:${p.date}:total`);
         const stats = await kv.mget<number[]>(...statKeys);
 
         // Combine
-        return validPuzzles.map((p: DailyPuzzle, index: number) => ({
+        return pastPuzzles.map((p: DailyPuzzle, index: number) => ({
             ...p,
             totalSolvers: stats[index] || 0
         }));
