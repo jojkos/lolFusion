@@ -4,6 +4,11 @@
 /node_modules
 /.pnp
 .pnp.*
+/.venv-gemini/
+__pycache__/
+
+# claude session state
+/.claude/
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
