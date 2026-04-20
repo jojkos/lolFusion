@@ -9,13 +9,20 @@ import asyncio
 import base64
 import json
 import os
+import sys
 import tempfile
+import time
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).parent))
+
+from _lib import cookie_store
+
 from gemini_webapi import GeminiClient
 from gemini_webapi.constants import Model
+from gemini_webapi.utils import rotate_1psidts
 
 
 def _json_response(handler: BaseHTTPRequestHandler, status: int, body: dict[str, Any]) -> None:
@@ -27,17 +34,37 @@ def _json_response(handler: BaseHTTPRequestHandler, status: int, body: dict[str,
     handler.wfile.write(payload)
 
 
+ROTATE_AFTER_SECONDS = 8 * 60
+
+
 async def _generate(prompt: str) -> dict[str, Any]:
-    psid = os.environ.get("GEMINI_PSID")
-    psidts = os.environ.get("GEMINI_PSIDTS")
-    if not psid or not psidts:
-        return {"ok": False, "kind": "config", "error": "GEMINI_PSID/GEMINI_PSIDTS not set"}
+    stored = await cookie_store.load() or cookie_store.seed_from_env()
+    if not stored:
+        return {
+            "ok": False,
+            "kind": "config",
+            "error": "No cookies in Upstash and GEMINI_PSID/GEMINI_PSIDTS env vars not set",
+        }
+    psid = stored["psid"]
+    psidts = stored["psidts"]
+    age = time.time() - stored["rotated_at"] if stored["rotated_at"] else float("inf")
 
     client = GeminiClient(psid, psidts, proxy=None)
     try:
         await client.init(timeout=60, auto_refresh=False)
     except Exception as e:
         return {"ok": False, "kind": "auth", "error": f"{type(e).__name__}: {e}"}
+
+    if age > ROTATE_AFTER_SECONDS:
+        try:
+            new_psidts = await rotate_1psidts(client.client, verbose=False)
+        except Exception as e:
+            return {"ok": False, "kind": "auth", "error": f"rotate failed: {type(e).__name__}: {e}"}
+        effective_psidts = new_psidts or psidts
+        await cookie_store.save(psid, effective_psidts)
+    elif not stored["rotated_at"]:
+        # seeded from env but never persisted — write initial state now
+        await cookie_store.save(psid, psidts)
 
     try:
         response = await client.generate_content(prompt, model=Model.BASIC_PRO)
