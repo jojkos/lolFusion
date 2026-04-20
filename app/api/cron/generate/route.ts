@@ -4,8 +4,6 @@ import { put } from "@vercel/blob";
 import { GoogleGenAI } from "@google/genai";
 import { THEMES } from "@/lib/constants";
 
-const IMAGE_MODEL = "wan-image";
-
 const genAI = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
@@ -183,30 +181,58 @@ export async function GET(request: NextRequest) {
       console.error("Gemini refinement failed:", e);
     }
 
-    // 5. Image Generation (Pollinations.ai )
+    // 5. Image Generation (Nano Banana Pro via /api/generate-image)
     try {
-      const finalPrompt = encodeURIComponent(refinedPrompt.slice(0, 1000));
-      const apiKey = process.env.POLLINATIONS_API_KEY || "";
-      const seed = 1;
+      const origin = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000";
 
-      // Construct URL as per latest API spec: gen.pollinations.ai/image/{prompt}
-      let imageUrl = `https://gen.pollinations.ai/image/${finalPrompt}?model=${IMAGE_MODEL}&width=2560&height=1440&quality=hd&seed=${seed}`;
-
-      if (apiKey) {
-        imageUrl += `&key=${apiKey}`;
-      }
-
-      console.log("Fetching image from Pollinations...");
-      const imageRes = await fetch(imageUrl, {
-        headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
+      console.log("Calling /api/generate-image...");
+      const genRes = await fetch(`${origin}/api/generate-image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: refinedPrompt.slice(0, 4000),
+          reference_images: [
+            `data:image/jpeg;base64,${base64A}`,
+            `data:image/jpeg;base64,${base64B}`,
+          ],
+        }),
       });
 
-      if (!imageRes.ok) {
-        const errText = await imageRes.text();
-        throw new Error(`Pollinations failed: ${imageRes.status} ${errText}`);
+      if (!genRes.ok) {
+        const errBody = await genRes.text();
+        throw new Error(
+          `generate-image failed: ${genRes.status} ${errBody.slice(0, 500)}`,
+        );
       }
 
-      const imageBuffer = Buffer.from(await imageRes.arrayBuffer());
+      const genJson = (await genRes.json()) as
+        | { ok: true; kind: "base64"; image_base64: string }
+        | { ok: true; kind: "url"; image_url: string }
+        | { ok: false; kind: string; error: string };
+
+      if (!genJson.ok) {
+        throw new Error(
+          `generate-image kind=${genJson.kind}: ${genJson.error}`,
+        );
+      }
+
+      let imageBuffer: Buffer;
+      if (genJson.kind === "base64") {
+        const comma = genJson.image_base64.indexOf(",");
+        const b64 =
+          comma >= 0
+            ? genJson.image_base64.slice(comma + 1)
+            : genJson.image_base64;
+        imageBuffer = Buffer.from(b64, "base64");
+      } else {
+        const imgRes = await fetch(genJson.image_url);
+        if (!imgRes.ok) {
+          throw new Error(`Fetching image_url failed: ${imgRes.status}`);
+        }
+        imageBuffer = Buffer.from(await imgRes.arrayBuffer());
+      }
 
       // 6. Save to Vercel Blob
       const date = new Date().toISOString().split("T")[0];
