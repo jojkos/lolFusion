@@ -120,7 +120,7 @@ def _json_response(handler: BaseHTTPRequestHandler, status: int, body: dict[str,
 ROTATE_AFTER_SECONDS = 8 * 60
 
 
-async def _generate(prompt: str) -> dict[str, Any]:
+async def _generate(prompt: str, reference_images: list[str] | None = None) -> dict[str, Any]:
     stored = await _load_cookies() or _seed_cookies_from_env()
     if not stored:
         return {
@@ -148,10 +148,37 @@ async def _generate(prompt: str) -> dict[str, Any]:
     elif not stored["rotated_at"]:
         await _save_cookies(psid, psidts)
 
+    tmpdir_obj = None
+    ref_paths: list[str] = []
+    if reference_images:
+        tmpdir_obj = tempfile.TemporaryDirectory()
+        for i, data_url in enumerate(reference_images):
+            _, _, b64 = data_url.rpartition(",")
+            b64 = b64 or data_url
+            try:
+                raw = base64.b64decode(b64, validate=False)
+            except Exception:
+                tmpdir_obj.cleanup()
+                return {
+                    "ok": False,
+                    "kind": "bad_request",
+                    "error": f"reference_images[{i}] is not valid base64",
+                }
+            p = Path(tmpdir_obj.name) / f"ref_{i}.jpg"
+            p.write_bytes(raw)
+            ref_paths.append(str(p))
+
     try:
-        response = await client.generate_content(prompt, model=Model.BASIC_PRO)
+        response = await client.generate_content(
+            prompt,
+            model=Model.BASIC_PRO,
+            files=ref_paths or None,
+        )
     except Exception as e:
         return {"ok": False, "kind": "generate", "error": f"{type(e).__name__}: {e}"}
+    finally:
+        if tmpdir_obj is not None:
+            tmpdir_obj.cleanup()
 
     images = list(response.images or [])
     if not images:
@@ -205,8 +232,17 @@ class handler(BaseHTTPRequestHandler):
             _json_response(self, 400, {"ok": False, "kind": "bad_request", "error": "prompt is required"})
             return
 
+        refs = body.get("reference_images") or []
+        if not isinstance(refs, list) or not all(isinstance(x, str) for x in refs):
+            _json_response(
+                self,
+                400,
+                {"ok": False, "kind": "bad_request", "error": "reference_images must be string[]"},
+            )
+            return
+
         try:
-            result = asyncio.run(_generate(prompt))
+            result = asyncio.run(_generate(prompt, refs))
         except Exception as e:
             _json_response(
                 self,
