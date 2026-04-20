@@ -22,6 +22,8 @@ __pycache__/
 /.next/
 /out/
 
+/.idea
+
 # production
 /build
 
