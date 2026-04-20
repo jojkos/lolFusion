@@ -263,9 +263,10 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({ success: true, data: dailyData });
     } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
       console.error("Image Generation failed:", e);
       return NextResponse.json(
-        { success: false, error: "Image Generation failed." },
+        { success: false, error: `Image Generation failed: ${message}` },
         { status: 500 },
       );
     }
