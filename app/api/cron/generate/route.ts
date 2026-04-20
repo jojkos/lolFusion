@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { kv } from "@vercel/kv";
 import { put } from "@vercel/blob";
-import { GoogleGenAI } from "@google/genai";
 import { THEMES } from "@/lib/constants";
 
-const genAI = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
-
-export const maxDuration = 300; // Allow 5 minutes for complex generation
+export const maxDuration = 300;
 
 // Helper to fetch latest DDragon version
 async function getLatestVersion(): Promise<string> {
@@ -98,90 +93,7 @@ export async function GET(request: NextRequest) {
     Clean: No text, logos, or UI elements.
     Composition: Center the character. High resolution, detailed background appropriate for a splash art.`;
 
-    const refinementPrompt = `Refine this image prompt to be extremely detailed for an AI image generator. 
-    Focus on visual fusion details based on the two input images (reference characters) and the description.
-    Original Request: ${prompt}`;
-
-    // 4. Gemini Generation (Text Prompt Refinement with Multimodal Input)
-    const contents = [
-      { text: refinementPrompt },
-      {
-        inlineData: {
-          mimeType: "image/jpeg",
-          data: base64A,
-        },
-      },
-      {
-        inlineData: {
-          mimeType: "image/jpeg",
-          data: base64B,
-        },
-      },
-    ];
-
-    // 4. Gemini Prompt Refinement (Text Only)
-    let refinedPrompt = prompt;
-    try {
-      const textResponse = await genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: "Refine this prompt for an AI image generator. IMPORTANT: Return ONLY the refined prompt text. Do NOT return JSON. Do NOT use tools.",
-              },
-              { text: prompt },
-              {
-                inlineData: {
-                  mimeType: "image/jpeg",
-                  data: base64A,
-                },
-              },
-              {
-                inlineData: {
-                  mimeType: "image/jpeg",
-                  data: base64B,
-                },
-              },
-            ],
-          },
-        ],
-      });
-
-      const rawText =
-        textResponse.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-      // Attempt to clean up if model still output JSON
-      if (rawText.trim().startsWith("{")) {
-        try {
-          const parsed = JSON.parse(rawText);
-          // Handle the specific format we saw in logs: { action_input: { prompt: "..." } } or just { prompt: "..." }
-          if (parsed.action_input) {
-            const input =
-              typeof parsed.action_input === "string"
-                ? JSON.parse(parsed.action_input)
-                : parsed.action_input;
-            refinedPrompt = input.prompt || rawText;
-          } else if (parsed.prompt) {
-            refinedPrompt = parsed.prompt;
-          } else {
-            // Fallback: Use raw text but try to strip common JSON markers if needed or just risk it
-            refinedPrompt = rawText;
-          }
-        } catch (e) {
-          refinedPrompt = rawText;
-        }
-      } else {
-        refinedPrompt = rawText || prompt;
-      }
-
-      console.log("Refined Prompt:", refinedPrompt);
-    } catch (e) {
-      console.error("Gemini refinement failed:", e);
-    }
-
-    // 5. Image Generation (Nano Banana Pro via /api/generate-image)
+    // 4. Image Generation (Nano Banana Pro via /api/generate-image)
     try {
       const origin = process.env.VERCEL_URL
         ? `https://${process.env.VERCEL_URL}`
@@ -200,7 +112,7 @@ export async function GET(request: NextRequest) {
         method: "POST",
         headers,
         body: JSON.stringify({
-          prompt: refinedPrompt.slice(0, 4000),
+          prompt: prompt.slice(0, 4000),
           reference_images: [
             `data:image/jpeg;base64,${base64A}`,
             `data:image/jpeg;base64,${base64B}`,
@@ -252,7 +164,6 @@ export async function GET(request: NextRequest) {
         contentType: "image/png",
         addRandomSuffix: false,
         token: process.env.BLOB_READ_WRITE_TOKEN,
-        // @ts-ignore - The SDK types might lag behind the API, but the error message was explicit.
         allowOverwrite: true,
       });
 
