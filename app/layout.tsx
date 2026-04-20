@@ -1,16 +1,28 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Cinzel, EB_Garamond, JetBrains_Mono } from "next/font/google";
 import { Analytics } from '@vercel/analytics/next';
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const cinzel = Cinzel({
+  variable: "--font-display",
   subsets: ["latin"],
+  weight: ["500", "600", "700", "900"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const ebGaramond = EB_Garamond({
+  variable: "--font-body",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -42,10 +54,13 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.png", type: "image/png" },
+      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-64.png", sizes: "64x64", type: "image/png" },
+      { url: "/favicon-512.png", sizes: "512x512", type: "image/png" },
     ],
-    shortcut: "/favicon.png",
-    apple: "/favicon.png",
+    shortcut: "/favicon-32.png",
+    apple: { url: "/favicon-180.png", sizes: "180x180", type: "image/png" },
   },
 };
 
@@ -59,7 +74,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${cinzel.variable} ${ebGaramond.variable} ${jetbrainsMono.variable} antialiased`}
       >
         {children}
         <Analytics />

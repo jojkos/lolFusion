@@ -1,11 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Calendar, Users } from 'lucide-react';
-import { getPuzzleHistory, HistoryItem } from '@/app/actions';
-
 import Image from 'next/image';
+import { getPuzzleHistory, HistoryItem } from '@/app/actions';
+import { FiligreeCorner } from './arcane';
 
 interface HistoryDrawerProps {
   isOpen: boolean;
@@ -28,95 +26,158 @@ export default function HistoryDrawer({ isOpen, onClose }: HistoryDrawerProps) {
     }
   }, [isOpen, history.length]);
 
+  if (!isOpen) return null;
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-5"
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative flex w-full flex-col overflow-hidden"
+        style={{
+          maxWidth: 580,
+          maxHeight: '86vh',
+          background: 'var(--bg-1)',
+          border: '1px solid var(--border-strong)',
+        }}
+      >
+        <FiligreeCorner position="tl" />
+        <FiligreeCorner position="tr" />
+        <FiligreeCorner position="bl" />
+        <FiligreeCorner position="br" />
+
+        {/* Sticky header */}
+        <div
+          className="flex flex-none items-start justify-between px-[22px] pb-4 pt-6 md:px-[30px]"
+          style={{ borderBottom: '1px solid var(--border)' }}
+        >
+          <div>
+            <div
+              className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.3em]"
+              style={{ color: 'var(--accent)' }}
+            >
+              · ARCHIVE ·
+            </div>
+            <div className="mt-[6px] font-[family-name:var(--font-display)] text-[24px] font-bold md:text-[28px]">
+              Past Fusions
+            </div>
+          </div>
+          <button
             onClick={onClose}
-            className="fixed inset-0 bg-black/50 z-[998] backdrop-blur-xs"
-          />
-
-          {/* Drawer */}
-          <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 h-full w-full max-w-md bg-black border-l border-gray-800 z-[999] shadow-2xl overflow-hidden flex flex-col"
+            className="cursor-pointer mt-1 flex h-8 w-8 items-center justify-center transition-colors hover:text-[var(--accent-2)]"
+            style={{ color: 'var(--ink-dim)', fontFamily: 'var(--font-mono)', fontSize: 18 }}
+            aria-label="Close"
           >
-            {/* Header */}
-            <div className="p-4 flex items-center justify-between border-b border-gray-800 bg-gray-900/50">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-purple-400" />
-                History
-              </h2>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+            ✕
+          </button>
+        </div>
 
-            {/* List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {loading ? (
-                <div className="flex justify-center p-8">
-                  <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : history.length === 0 ? (
-                <div className="text-center text-gray-500 p-8">
-                  No history available yet.
-                </div>
-              ) : (
-                history.map((item) => (
-                  <div key={item.date} className="bg-gray-900 rounded-xl overflow-hidden border border-gray-800 hover:border-purple-500/50 transition-colors">
-                    {/* Image Header */}
-                    <div
-                      className="relative aspect-video cursor-pointer"
-                      onClick={() => window.open(item.imageUrl, '_blank')}
-                    >
-                      <Image
-                        src={item.imageUrl}
-                        alt={`${item.champA} + ${item.champB}`}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                      />
-                      <div className="absolute inset-0 bg-linear-to-t from-black/90 to-transparent flex items-end p-3 z-10">
-                        <div className="w-full">
-                          <span className="text-xs font-mono text-gray-400 mb-1 block">
-                            {new Date(item.date).toLocaleDateString()}
-                          </span>
-                          <h3 className="text-lg font-bold text-white leading-tight">
-                            {item.champA} <span className="text-purple-500">+</span> {item.champB}
-                          </h3>
-                        </div>
-                      </div>
-                    </div>
-                    {/* Footer Info */}
-                    <div className="p-3 flex items-center justify-between text-xs bg-gray-950/50">
-                      <div className="flex items-center gap-1.5 text-gray-400">
-                        <span className="w-2 h-2 rounded-full bg-pink-500"></span>
-                        {item.theme}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-yellow-500 font-medium">
-                        <Users className="w-3.5 h-3.5" />
-                        {item.totalSolvers.toLocaleString()} solved
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
+        {/* Scrollable list */}
+        <div className="arcane-scroll flex-1 overflow-y-auto px-[22px] pb-6 md:px-[30px]">
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div
+                className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent"
+                style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }}
+              />
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+          ) : history.length === 0 ? (
+            <div
+              className="py-8 text-center italic"
+              style={{ color: 'var(--ink-faint)' }}
+            >
+              No past fusions yet.
+            </div>
+          ) : (
+            history.map((item) => (
+              <div
+                key={item.date}
+                className="grid items-center gap-[14px] border-b py-[12px]"
+                style={{
+                  gridTemplateColumns: '72px 1fr auto',
+                  borderColor: 'var(--border)',
+                }}
+              >
+                {/* Thumbnail */}
+                <button
+                  type="button"
+                  onClick={() => window.open(item.imageUrl, '_blank')}
+                  className="group relative h-[72px] w-[72px] cursor-pointer overflow-hidden"
+                  style={{
+                    border: '1px solid var(--border-strong)',
+                    background: 'var(--bg-2)',
+                  }}
+                  aria-label={`View ${item.champA} × ${item.champB} full size`}
+                >
+                  <Image
+                    src={item.imageUrl}
+                    alt={`${item.champA} + ${item.champB}`}
+                    fill
+                    sizes="72px"
+                    className="object-cover transition-opacity group-hover:opacity-75"
+                  />
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0"
+                    style={{ boxShadow: 'inset 0 0 20px rgba(0,0,0,0.6)' }}
+                  />
+                </button>
+
+                {/* Meta */}
+                <div className="min-w-0">
+                  <div
+                    className="mb-[4px] font-[family-name:var(--font-mono)] text-[10px] tracking-[0.2em]"
+                    style={{ color: 'var(--ink-faint)' }}
+                  >
+                    {formatDate(item.date)}
+                  </div>
+                  <div
+                    className="truncate font-[family-name:var(--font-display)] text-[15px]"
+                    style={{ color: 'var(--ink)' }}
+                  >
+                    {item.champA}{' '}
+                    <span style={{ color: 'var(--accent)' }}>×</span>{' '}
+                    {item.champB}
+                  </div>
+                  <div
+                    className="mt-[2px] truncate italic"
+                    style={{ color: 'var(--ink-dim)', fontSize: 11 }}
+                  >
+                    {item.theme}
+                  </div>
+                </div>
+
+                {/* Solvers */}
+                <div
+                  className="whitespace-nowrap text-right font-[family-name:var(--font-mono)] text-[11px]"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  {item.totalSolvers.toLocaleString()}
+                  <div
+                    className="text-[9px] tracking-[0.2em]"
+                    style={{ color: 'var(--ink-faint)' }}
+                  >
+                    SOLVED
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
   );
+}
+
+function formatDate(iso: string) {
+  try {
+    return new Date(iso)
+      .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      .toUpperCase();
+  } catch {
+    return iso.toUpperCase();
+  }
 }

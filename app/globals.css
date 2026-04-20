@@ -1,26 +1,110 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+
+  /* Dark Arcane palette */
+  --bg-0: #07060a;
+  --bg-1: #100c14;
+  --bg-2: #1a1420;
+  --ink: #ece4d3;
+  --ink-dim: #a89a7d;
+  --ink-faint: #5c523f;
+  --accent: #d9a84a;
+  --accent-2: #f5d27a;
+  --accent-glow: rgba(217, 168, 74, 0.35);
+  --success: #7fb97a;
+  --danger: #c2553f;
+  --border: rgba(217, 168, 74, 0.28);
+  --border-strong: rgba(217, 168, 74, 0.55);
+  --panel: rgba(16, 12, 20, 0.88);
+  --panel-inner: rgba(8, 6, 10, 0.7);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg-0: var(--bg-0);
+  --color-bg-1: var(--bg-1);
+  --color-bg-2: var(--bg-2);
+  --color-ink: var(--ink);
+  --color-ink-dim: var(--ink-dim);
+  --color-ink-faint: var(--ink-faint);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-border-arcane: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-0);
+  color: var(--ink);
+  min-height: 100%;
+  font-family: var(--font-body), "EB Garamond", Georgia, serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Arcane animations */
+@keyframes fusionGoldPulse {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.25); }
+}
+
+@keyframes fusionSunburst {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(0deg); }
+  40% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(2.6) rotate(30deg); }
+}
+
+@keyframes fusionSweep {
+  0% { transform: translateX(-120%); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translateX(120%); opacity: 0; }
+}
+
+@keyframes fusionSpark {
+  0% { opacity: 1; transform: translate(0, 0) scale(1); }
+  100% {
+    opacity: 0;
+    transform: translate(var(--tx, 0), var(--ty, -60px)) scale(0.4);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes fusionWinGlow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+@keyframes fusionShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(3px); }
+}
+
+/* Scrollbar tuning for arcane panels */
+.arcane-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.arcane-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.arcane-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+.arcane-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
 }
