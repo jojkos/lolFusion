@@ -3,26 +3,105 @@
 POST /api/generate-image   body: {"prompt": "..."}
 Returns JSON with a discriminated "kind" so the frontend can distinguish
 auth failures from geo-blocks from empty responses.
+
+Cookie persistence is inlined rather than imported from a sibling module:
+Vercel's Python builder bundles each api/*.py independently and does not
+reliably include api/_lib/ subdirectory helpers.
 """
 
 import asyncio
 import base64
 import json
 import os
-import sys
 import tempfile
 import time
+import traceback
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional, TypedDict
 
-sys.path.insert(0, str(Path(__file__).parent))
-
-from _lib import cookie_store
+import httpx
 
 from gemini_webapi import GeminiClient
 from gemini_webapi.constants import Model
 from gemini_webapi.utils import rotate_1psidts
+
+
+# ---------------------------------------------------------------------------
+# Cookie store (Upstash Redis REST, same creds @vercel/kv uses)
+# ---------------------------------------------------------------------------
+
+COOKIE_KEY = "gemini:cookies"
+
+
+class Cookies(TypedDict):
+    psid: str
+    psidts: str
+    rotated_at: float
+
+
+def _upstash_creds() -> Optional[tuple[str, str]]:
+    url = os.environ.get("KV_REST_API_URL")
+    token = os.environ.get("KV_REST_API_TOKEN")
+    if not url or not token:
+        return None
+    return url.rstrip("/"), token
+
+
+async def _load_cookies() -> Optional[Cookies]:
+    creds = _upstash_creds()
+    if not creds:
+        return None
+    url, token = creds
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            f"{url}/get/{COOKIE_KEY}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    if resp.status_code != 200:
+        return None
+    raw = resp.json().get("result")
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(data, dict) or "psid" not in data or "psidts" not in data:
+        return None
+    return {
+        "psid": data["psid"],
+        "psidts": data["psidts"],
+        "rotated_at": float(data.get("rotated_at", 0)),
+    }
+
+
+async def _save_cookies(psid: str, psidts: str) -> bool:
+    creds = _upstash_creds()
+    if not creds:
+        return False
+    url, token = creds
+    payload = json.dumps({"psid": psid, "psidts": psidts, "rotated_at": time.time()})
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.post(
+            f"{url}/set/{COOKIE_KEY}",
+            headers={"Authorization": f"Bearer {token}"},
+            content=payload,
+        )
+    return resp.status_code == 200
+
+
+def _seed_cookies_from_env() -> Optional[Cookies]:
+    psid = os.environ.get("GEMINI_PSID")
+    psidts = os.environ.get("GEMINI_PSIDTS")
+    if not psid or not psidts:
+        return None
+    return {"psid": psid, "psidts": psidts, "rotated_at": 0.0}
+
+
+# ---------------------------------------------------------------------------
+# Response helpers
+# ---------------------------------------------------------------------------
 
 
 def _json_response(handler: BaseHTTPRequestHandler, status: int, body: dict[str, Any]) -> None:
@@ -34,11 +113,15 @@ def _json_response(handler: BaseHTTPRequestHandler, status: int, body: dict[str,
     handler.wfile.write(payload)
 
 
+# ---------------------------------------------------------------------------
+# Core generation
+# ---------------------------------------------------------------------------
+
 ROTATE_AFTER_SECONDS = 8 * 60
 
 
 async def _generate(prompt: str) -> dict[str, Any]:
-    stored = await cookie_store.load() or cookie_store.seed_from_env()
+    stored = await _load_cookies() or _seed_cookies_from_env()
     if not stored:
         return {
             "ok": False,
@@ -61,10 +144,9 @@ async def _generate(prompt: str) -> dict[str, Any]:
         except Exception as e:
             return {"ok": False, "kind": "auth", "error": f"rotate failed: {type(e).__name__}: {e}"}
         effective_psidts = new_psidts or psidts
-        await cookie_store.save(psid, effective_psidts)
+        await _save_cookies(psid, effective_psidts)
     elif not stored["rotated_at"]:
-        # seeded from env but never persisted — write initial state now
-        await cookie_store.save(psid, psidts)
+        await _save_cookies(psid, psidts)
 
     try:
         response = await client.generate_content(prompt, model=Model.BASIC_PRO)
@@ -104,6 +186,11 @@ async def _generate(prompt: str) -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# HTTP entry point
+# ---------------------------------------------------------------------------
+
+
 class handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length") or "0")
@@ -118,7 +205,21 @@ class handler(BaseHTTPRequestHandler):
             _json_response(self, 400, {"ok": False, "kind": "bad_request", "error": "prompt is required"})
             return
 
-        result = asyncio.run(_generate(prompt))
+        try:
+            result = asyncio.run(_generate(prompt))
+        except Exception as e:
+            _json_response(
+                self,
+                500,
+                {
+                    "ok": False,
+                    "kind": "internal",
+                    "error": f"{type(e).__name__}: {e}",
+                    "traceback": traceback.format_exc(),
+                },
+            )
+            return
+
         if result.get("ok"):
             status = 200
         elif result.get("kind") == "auth":
