@@ -1,9 +1,67 @@
 import { NextRequest, NextResponse } from "next/server";
 import { kv } from "@vercel/kv";
 import { put } from "@vercel/blob";
+import { GoogleGenAI } from "@google/genai";
 import { THEMES } from "@/lib/constants";
 
 export const maxDuration = 300;
+
+async function refinePrompt(
+  basePrompt: string,
+  base64A: string,
+  base64B: string,
+): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.warn("GEMINI_API_KEY not set — skipping refinement");
+    return basePrompt;
+  }
+
+  const genAI = new GoogleGenAI({ apiKey });
+
+  try {
+    const res = await genAI.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: "Refine this image prompt for an AI image generator. Use the two reference images provided to add concrete visual detail about both characters. IMPORTANT: Return ONLY the refined prompt text. Do NOT return JSON. Do NOT use tools.",
+            },
+            { text: basePrompt },
+            { inlineData: { mimeType: "image/jpeg", data: base64A } },
+            { inlineData: { mimeType: "image/jpeg", data: base64B } },
+          ],
+        },
+      ],
+    });
+
+    const rawText = res.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const trimmed = rawText.trim();
+    if (!trimmed) return basePrompt;
+
+    // The model occasionally ignores instructions and returns JSON like
+    // { prompt: "..." } or { action_input: { prompt: "..." } }
+    if (trimmed.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        const nested =
+          typeof parsed.action_input === "string"
+            ? JSON.parse(parsed.action_input)
+            : parsed.action_input;
+        return nested?.prompt || parsed.prompt || trimmed;
+      } catch {
+        return trimmed;
+      }
+    }
+
+    return trimmed;
+  } catch (e) {
+    console.error("Gemini refinement failed:", e);
+    return basePrompt;
+  }
+}
 
 // Helper to fetch latest DDragon version
 async function getLatestVersion(): Promise<string> {
@@ -93,7 +151,11 @@ export async function GET(request: NextRequest) {
     Clean: No text, logos, or UI elements.
     Composition: Center the character. High resolution, detailed background appropriate for a splash art.`;
 
-    // 4. Image Generation (Nano Banana Pro via /api/generate-image)
+    // 4. Refine prompt with gemini-3-flash-preview (multimodal)
+    const refinedPrompt = await refinePrompt(prompt, base64A, base64B);
+    console.log("Refined prompt:", refinedPrompt.slice(0, 300));
+
+    // 5. Image Generation (Nano Banana Pro via /api/generate-image)
     try {
       const origin = process.env.VERCEL_URL
         ? `https://${process.env.VERCEL_URL}`
@@ -112,7 +174,7 @@ export async function GET(request: NextRequest) {
         method: "POST",
         headers,
         body: JSON.stringify({
-          prompt: prompt.slice(0, 4000),
+          prompt: refinedPrompt.slice(0, 4000),
           reference_images: [
             `data:image/jpeg;base64,${base64A}`,
             `data:image/jpeg;base64,${base64B}`,
