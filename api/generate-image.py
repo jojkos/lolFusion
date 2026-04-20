@@ -193,13 +193,23 @@ async def _generate(prompt: str, reference_images: list[str] | None = None) -> d
     img = images[0]
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
-            saved = await img.save(path=tmpdir, filename="out.png", verbose=False)
+            saved = await img.save(
+                path=tmpdir,
+                filename="out.png",
+                verbose=False,
+                full_size=True,
+            )
             data = Path(saved).read_bytes()
     except Exception as e:
+        fallback_url = img.url
+        if "=s1024-rj" in fallback_url:
+            fallback_url = fallback_url.replace("=s1024-rj", "=s2048-rj")
+        elif "=s2048-rj" not in fallback_url and "=" not in fallback_url.rsplit("/", 1)[-1]:
+            fallback_url = f"{fallback_url}=s2048-rj"
         return {
             "ok": True,
             "kind": "url",
-            "image_url": img.url,
+            "image_url": fallback_url,
             "note": f"save failed, returning url: {type(e).__name__}: {e}",
         }
 
