@@ -187,10 +187,18 @@ export async function GET(request: NextRequest) {
         ? `https://${process.env.VERCEL_URL}`
         : "http://localhost:3000";
 
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET) {
+        headers["x-vercel-protection-bypass"] =
+          process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+      }
+
       console.log("Calling /api/generate-image...");
       const genRes = await fetch(`${origin}/api/generate-image`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           prompt: refinedPrompt.slice(0, 4000),
           reference_images: [
