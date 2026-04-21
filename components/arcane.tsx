@@ -271,7 +271,7 @@ type Slots = { A: Slot; B: Slot; Theme: Slot };
 
 export function SlotRail({ slots, phase }: { slots: Slots; phase: Phase }) {
   return (
-    <div className="mt-[14px] grid grid-cols-[1fr_auto_1fr_auto_1fr] items-stretch gap-[6px] md:gap-[10px]">
+    <div className="mt-[10px] grid grid-cols-[1fr_auto_1fr_auto_1fr] items-stretch gap-[4px] md:mt-[14px] md:gap-[10px]">
       <SlotCard label="FIND · 1" value={slots.A.name} found={slots.A.found} locked={false} />
       <Connector active={slots.A.found} />
       <SlotCard label="FIND · 2" value={slots.B.name} found={slots.B.found} locked={false} />
@@ -300,7 +300,7 @@ function SlotCard({
   const valueColor = found ? 'var(--ink)' : 'var(--ink-faint)';
   return (
     <div
-      className="relative flex min-h-[62px] flex-col justify-center border px-2 py-2 transition-all duration-300 md:min-h-[72px] md:px-[14px] md:py-3"
+      className="relative flex min-h-[48px] flex-col justify-center border px-2 py-[6px] transition-all duration-300 md:min-h-[72px] md:px-[14px] md:py-3"
       style={{
         background: 'var(--panel)',
         borderColor: found ? 'var(--accent)' : 'var(--border)',

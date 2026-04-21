@@ -55,6 +55,15 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
     const [celebrate, setCelebrate] = useState<Celebrate>(null);
     const [shake, setShake] = useState(false);
     const [shareCopied, setShareCopied] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 767px)');
+        const update = () => setIsMobile(mq.matches);
+        update();
+        mq.addEventListener('change', update);
+        return () => mq.removeEventListener('change', update);
+    }, []);
 
     const selectId = useId();
 
@@ -374,10 +383,10 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
     };
 
     const phaseCopy = phase === 'phase1'
-        ? { label: 'STEP · 1', title: 'Identify the champions', prompt: 'Two silhouettes blur into one. Each correct name widens the vision — each wrong guess narrows it.' }
+        ? { label: 'STEP · 1', title: 'Identify the champions' }
         : phase === 'phase2'
-        ? { label: 'STEP · 2', title: 'Name the skin line', prompt: 'Every skin belongs to a line. Which one threads these two together?' }
-        : { label: 'RESOLVED', title: 'Review your result', prompt: givenUp ? 'The seal breaks — the names were whispered to you.' : 'The seal has been lifted.' };
+        ? { label: 'STEP · 2', title: 'Name the skin line' }
+        : { label: 'RESOLVED', title: 'Review your result' };
 
     return (
         <div className="flex flex-col">
@@ -388,10 +397,10 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 onOpenHelp={() => setHelpOpen(true)}
             />
 
-            <div className="mx-auto grid w-full max-w-[1280px] grid-cols-1 gap-8 px-4 py-6 md:grid-cols-[minmax(0,1fr)_420px] md:gap-8 md:px-8 md:py-7">
+            <div className="mx-auto grid w-full max-w-[1280px] grid-cols-1 gap-3 px-3 py-3 md:grid-cols-[minmax(0,1fr)_420px] md:gap-8 md:px-8 md:py-7">
                 {/* LEFT: Artifact */}
                 <div className="flex flex-col">
-                    <div className="mx-auto w-full max-w-[560px]">
+                    <div className="mx-auto w-full max-w-[min(100%,38vh)] md:max-w-[560px]">
                         <ArcaneArtifact
                             canvasRef={canvasRef}
                             phase={phase}
@@ -409,10 +418,10 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 {/* RIGHT: Control panel */}
                 <div className="flex flex-col">
                     <div
-                        className="relative min-h-[280px] px-5 py-5 md:px-[22px] md:py-5"
+                        className="relative px-3 py-3 md:min-h-[280px] md:px-[22px] md:py-5"
                         style={{ background: 'var(--panel)', border: '1px solid var(--border)' }}
                     >
-                        <div className="border-b pb-[10px]" style={{ borderColor: 'var(--border)' }}>
+                        <div className="border-b pb-[8px] md:pb-[10px]" style={{ borderColor: 'var(--border)' }}>
                             <div
                                 className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.28em]"
                                 style={{ color: 'var(--accent)' }}
@@ -420,21 +429,14 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                                 {phaseCopy.label}
                             </div>
                             <div
-                                className="mt-[4px] font-[family-name:var(--font-display)] text-[22px] font-semibold"
+                                className="mt-[4px] font-[family-name:var(--font-display)] text-[18px] font-semibold md:text-[22px]"
                                 style={{ color: 'var(--ink)' }}
                             >
                                 {phaseCopy.title}
                             </div>
                         </div>
-                        <div
-                            className="mt-[10px] italic leading-[1.5]"
-                            style={{ color: 'var(--ink-dim)', fontSize: 13 }}
-                        >
-                            {phaseCopy.prompt}
-                        </div>
-
                         {phase !== 'won' ? (
-                            <div className="mt-[18px]">
+                            <div className="mt-[12px] md:mt-[18px]">
                                 <div
                                     className="relative"
                                     style={{ animation: shake ? 'fusionShake 360ms ease' : 'none' }}
@@ -470,7 +472,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                                                 noOptionsMessage={() => guess.length > 0 ? 'No matches' : 'Start typing…'}
                                                 isLoading={loading}
                                                 isDisabled={false}
-                                                menuPlacement="auto"
+                                                menuPlacement={isMobile ? 'top' : 'auto'}
                                             />
                                         </div>
                                         <button
