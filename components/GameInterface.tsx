@@ -445,38 +445,49 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                                 >
                                     <div className="flex gap-2">
                                         <div className="flex-1">
-                                            <Select
-                                                ref={selectRef}
-                                                instanceId={selectId}
-                                                inputId={`${selectId}-input`}
-                                                options={selectOptions}
-                                                value={guess ? { value: guess, label: guess } : null}
-                                                onChange={(option) => {
-                                                    if (option) {
-                                                        setGuess(option.value);
-                                                        handleGuess(option.value);
-                                                    }
-                                                }}
-                                                onInputChange={(value, action) => {
-                                                    if (action.action === 'input-change') setGuess(value);
-                                                }}
-                                                inputValue={guess}
-                                                placeholder={phase === 'phase1' ? 'Type a champion name…' : 'Name the skin line…'}
-                                                styles={selectStyles}
-                                                isSearchable
-                                                isClearable={false}
-                                                blurInputOnSelect={false}
-                                                autoFocus={!isMobile}
-                                                menuShouldScrollIntoView={false}
-                                                filterOption={(option, input) => {
-                                                    const normalize = (s: string) => s.toLowerCase().replace(/['-\s]/g, '');
-                                                    return normalize(option.label).includes(normalize(input));
-                                                }}
-                                                noOptionsMessage={() => guess.length > 0 ? 'No matches' : 'Start typing…'}
-                                                isLoading={loading}
-                                                isDisabled={false}
-                                                menuPlacement={isMobile ? 'top' : 'auto'}
-                                            />
+                                            {isMobile ? (
+                                                <MobilePicker
+                                                    value={guess}
+                                                    options={availableOptions}
+                                                    placeholder={phase === 'phase1' ? 'Type a champion name…' : 'Name the skin line…'}
+                                                    disabled={loading}
+                                                    onSelect={(val) => {
+                                                        setGuess(val);
+                                                        handleGuess(val);
+                                                    }}
+                                                />
+                                            ) : (
+                                                <Select
+                                                    ref={selectRef}
+                                                    instanceId={selectId}
+                                                    inputId={`${selectId}-input`}
+                                                    options={selectOptions}
+                                                    value={guess ? { value: guess, label: guess } : null}
+                                                    onChange={(option) => {
+                                                        if (option) {
+                                                            setGuess(option.value);
+                                                            handleGuess(option.value);
+                                                        }
+                                                    }}
+                                                    onInputChange={(value, action) => {
+                                                        if (action.action === 'input-change') setGuess(value);
+                                                    }}
+                                                    inputValue={guess}
+                                                    placeholder={phase === 'phase1' ? 'Type a champion name…' : 'Name the skin line…'}
+                                                    styles={selectStyles}
+                                                    isSearchable
+                                                    isClearable={false}
+                                                    blurInputOnSelect={false}
+                                                    autoFocus
+                                                    filterOption={(option, input) => {
+                                                        const normalize = (s: string) => s.toLowerCase().replace(/['-\s]/g, '');
+                                                        return normalize(option.label).includes(normalize(input));
+                                                    }}
+                                                    noOptionsMessage={() => guess.length > 0 ? 'No matches' : 'Start typing…'}
+                                                    isLoading={loading}
+                                                    menuPlacement="auto"
+                                                />
+                                            )}
                                         </div>
                                         <button
                                             onClick={() => handleGuess()}
@@ -549,6 +560,125 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
             {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
             <HistoryDrawer isOpen={historyOpen} onClose={() => setHistoryOpen(false)} />
         </div>
+    );
+}
+
+// -------- MOBILE PICKER --------
+function MobilePicker({
+    value,
+    options,
+    placeholder,
+    disabled,
+    onSelect,
+}: {
+    value: string;
+    options: string[];
+    placeholder: string;
+    disabled: boolean;
+    onSelect: (v: string) => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (!open) return;
+        setSearch('');
+        const t = setTimeout(() => inputRef.current?.focus(), 50);
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            clearTimeout(t);
+            document.body.style.overflow = prevOverflow;
+        };
+    }, [open]);
+
+    const normalize = (s: string) => s.toLowerCase().replace(/['-\s]/g, '');
+    const filtered = search
+        ? options.filter((o) => normalize(o).includes(normalize(search)))
+        : options;
+
+    return (
+        <>
+            <button
+                type="button"
+                onClick={() => setOpen(true)}
+                disabled={disabled}
+                className="flex h-[46px] w-full items-center justify-between px-3 text-left font-[family-name:var(--font-body)] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                style={{
+                    backgroundColor: 'var(--panel-inner)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 2,
+                    color: value ? 'var(--ink)' : 'var(--ink-faint)',
+                }}
+            >
+                <span className="truncate">{value || placeholder}</span>
+                <span style={{ color: 'var(--ink-faint)' }}>▾</span>
+            </button>
+
+            {open && (
+                <div
+                    className="fixed inset-0 z-[100] flex flex-col"
+                    style={{ background: 'var(--bg-0)' }}
+                >
+                    <div
+                        className="flex items-center gap-2 p-3"
+                        style={{ borderBottom: '1px solid var(--border-strong)', background: 'var(--panel)' }}
+                    >
+                        <input
+                            ref={inputRef}
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder={placeholder}
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            className="h-[40px] flex-1 bg-transparent px-2 font-[family-name:var(--font-body)] outline-none"
+                            style={{
+                                color: 'var(--ink)',
+                                border: '1px solid var(--border)',
+                                borderRadius: 2,
+                            }}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setOpen(false)}
+                            className="cursor-pointer px-3 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.22em]"
+                            style={{ color: 'var(--ink-faint)' }}
+                        >
+                            CANCEL
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto overscroll-contain">
+                        {filtered.length === 0 ? (
+                            <div
+                                className="p-6 text-center font-[family-name:var(--font-body)]"
+                                style={{ color: 'var(--ink-faint)' }}
+                            >
+                                {search ? 'No matches' : 'Start typing…'}
+                            </div>
+                        ) : (
+                            filtered.map((opt) => (
+                                <button
+                                    key={opt}
+                                    type="button"
+                                    onClick={() => {
+                                        setOpen(false);
+                                        onSelect(opt);
+                                    }}
+                                    className="block w-full px-4 py-3 text-left font-[family-name:var(--font-body)]"
+                                    style={{
+                                        color: 'var(--ink)',
+                                        borderBottom: '1px solid var(--border)',
+                                    }}
+                                >
+                                    {opt}
+                                </button>
+                            ))
+                        )}
+                    </div>
+                </div>
+            )}
+        </>
     );
 }
 
