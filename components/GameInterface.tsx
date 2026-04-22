@@ -281,7 +281,9 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 await submitGameStats(newAttempts);
                 fetchGlobalStats();
 
-                setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 500);
+                setTimeout(() => {
+                    if (!isMobile) resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 500);
             } else {
                 setMessage({ ok: false, text: `${finalGuess} — not the skin line.` });
                 const newWrong = [...wrongGuesses, finalGuess];
@@ -292,7 +294,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
             }
         }
         setLoading(false);
-        setTimeout(() => selectRef.current?.focus(), 0);
+        setTimeout(() => { if (!isMobile) selectRef.current?.focus(); }, 0);
     };
 
     const handleGiveUp = async () => {
@@ -464,7 +466,8 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                                                 isSearchable
                                                 isClearable={false}
                                                 blurInputOnSelect={false}
-                                                autoFocus
+                                                autoFocus={!isMobile}
+                                                menuShouldScrollIntoView={false}
                                                 filterOption={(option, input) => {
                                                     const normalize = (s: string) => s.toLowerCase().replace(/['-\s]/g, '');
                                                     return normalize(option.label).includes(normalize(input));
