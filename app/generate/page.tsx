@@ -18,8 +18,11 @@ type ApiResponse =
       response_text?: string;
     };
 
+type Provider = "pollinations" | "gemini";
+
 export default function GeneratePage() {
   const [prompt, setPrompt] = useState("");
+  const [provider, setProvider] = useState<Provider>("pollinations");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ApiResponse | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -37,8 +40,11 @@ export default function GeneratePage() {
       1000,
     );
 
+    const endpoint =
+      provider === "gemini" ? "/api/generate-image" : "/api/generate-pollinations";
+
     try {
-      const res = await fetch("/api/generate-image", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),
@@ -67,14 +73,36 @@ export default function GeneratePage() {
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
       <div>
-        <h1 className="text-2xl font-semibold">Nano Banana Pro</h1>
+        <h1 className="text-2xl font-semibold">Image generation test</h1>
         <p className="mt-1 text-sm text-gray-600">
-          Image generation via gemini-3-pro (cookie-authenticated). Expect
-          30–90s per generation.
+          Pollinations (gpt-image-2) is fast. Gemini (nano banana pro, cookie-authenticated)
+          takes 30–90s per generation.
         </p>
       </div>
 
       <form onSubmit={onSubmit} className="flex flex-col gap-3">
+        <fieldset className="flex gap-4 text-sm" disabled={loading}>
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="provider"
+              value="pollinations"
+              checked={provider === "pollinations"}
+              onChange={() => setProvider("pollinations")}
+            />
+            <span>Pollinations (gpt-image-2)</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="provider"
+              value="gemini"
+              checked={provider === "gemini"}
+              onChange={() => setProvider("gemini")}
+            />
+            <span>Gemini (nano banana pro)</span>
+          </label>
+        </fieldset>
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}

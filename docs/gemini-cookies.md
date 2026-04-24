@@ -2,6 +2,15 @@
 
 The `/api/generate-image` endpoint authenticates to gemini.google.com via your personal Google account cookies. There is **no Google API key** — you paste browser cookies into Vercel env vars.
 
+## Picking a provider
+
+The daily fusion cron supports two image backends, selected by the `IMAGE_PROVIDER` env var:
+
+- `pollinations` (default) — fast, text-only, via `gen.pollinations.ai` with `gpt-image-2`. Requires `POLLINATIONS_API_KEY`.
+- `gemini` — Nano Banana Pro via cookie auth (this doc). Supports reference images; takes 30–90s per generation.
+
+`/generate` has a radio to pick either one ad-hoc regardless of the env var.
+
 ## Grabbing cookies
 
 1. Sign into https://gemini.google.com with a Google account that has **AI Pro** (required for Nano Banana Pro / `gemini-3-pro`).

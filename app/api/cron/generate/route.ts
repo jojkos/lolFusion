@@ -3,6 +3,11 @@ import { kv } from "@vercel/kv";
 import { put } from "@vercel/blob";
 import { GoogleGenAI } from "@google/genai";
 import { THEMES } from "@/lib/constants";
+import {
+  generateWithGemini,
+  generateWithPollinations,
+  getProvider,
+} from "@/lib/image-providers";
 
 export const maxDuration = 300;
 
@@ -155,66 +160,15 @@ export async function GET(request: NextRequest) {
     const refinedPrompt = await refinePrompt(prompt, base64A, base64B);
     console.log("Refined prompt:", refinedPrompt.slice(0, 300));
 
-    // 5. Image Generation (Nano Banana Pro via /api/generate-image)
+    // 5. Image Generation — provider selected by IMAGE_PROVIDER env var
     try {
-      const origin = process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000";
+      const provider = getProvider();
+      console.log(`Generating image via provider: ${provider}`);
 
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET) {
-        headers["x-vercel-protection-bypass"] =
-          process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
-      }
-
-      console.log("Calling /api/generate-image...");
-      const genRes = await fetch(`${origin}/api/generate-image`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          prompt: refinedPrompt.slice(0, 4000),
-          reference_images: [
-            `data:image/jpeg;base64,${base64A}`,
-            `data:image/jpeg;base64,${base64B}`,
-          ],
-        }),
-      });
-
-      if (!genRes.ok) {
-        const errBody = await genRes.text();
-        throw new Error(
-          `generate-image failed: ${genRes.status} ${errBody.slice(0, 500)}`,
-        );
-      }
-
-      const genJson = (await genRes.json()) as
-        | { ok: true; kind: "base64"; image_base64: string }
-        | { ok: true; kind: "url"; image_url: string }
-        | { ok: false; kind: string; error: string };
-
-      if (!genJson.ok) {
-        throw new Error(
-          `generate-image kind=${genJson.kind}: ${genJson.error}`,
-        );
-      }
-
-      let imageBuffer: Buffer;
-      if (genJson.kind === "base64") {
-        const comma = genJson.image_base64.indexOf(",");
-        const b64 =
-          comma >= 0
-            ? genJson.image_base64.slice(comma + 1)
-            : genJson.image_base64;
-        imageBuffer = Buffer.from(b64, "base64");
-      } else {
-        const imgRes = await fetch(genJson.image_url);
-        if (!imgRes.ok) {
-          throw new Error(`Fetching image_url failed: ${imgRes.status}`);
-        }
-        imageBuffer = Buffer.from(await imgRes.arrayBuffer());
-      }
+      const imageBuffer =
+        provider === "gemini"
+          ? await generateWithGemini(refinedPrompt, [base64A, base64B])
+          : await generateWithPollinations(refinedPrompt);
 
       // 6. Save to Vercel Blob
       const date = new Date().toISOString().split("T")[0];
