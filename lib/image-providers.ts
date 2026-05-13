@@ -46,11 +46,15 @@ export async function generateWithGemini(
     headers["x-vercel-protection-bypass"] = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
   }
 
+  const steered =
+    "Generate an image. Output the image only — do not reply with text, do not describe the image in words, do not ask follow-up questions. " +
+    prompt.slice(0, 4000);
+
   const res = await fetch(`${origin}/api/generate-image`, {
     method: "POST",
     headers,
     body: JSON.stringify({
-      prompt: prompt.slice(0, 4000),
+      prompt: steered,
       reference_images: referenceImagesBase64.map((b) => `data:image/jpeg;base64,${b}`),
     }),
   });
