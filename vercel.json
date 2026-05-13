@@ -6,9 +6,8 @@
     }
   },
   "crons": [
-    {
-      "path": "/api/cron/generate",
-      "schedule": "0 1 * * *"
-    }
+    { "path": "/api/cron/generate",         "schedule": "0 1 * * *" },
+    { "path": "/api/cron/generate?retry=1", "schedule": "15 2 * * *" },
+    { "path": "/api/cron/generate?retry=2", "schedule": "30 3 * * *" }
   ]
 }

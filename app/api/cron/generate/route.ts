@@ -109,6 +109,15 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // 0. Idempotency — skip if today's puzzle was already generated.
+    // The cron is scheduled multiple times per day as retries; the first
+    // successful run wins, later ones no-op.
+    const today = new Date().toISOString().split("T")[0];
+    const existing = await kv.get(`puzzle:${today}`);
+    if (existing) {
+      return NextResponse.json({ success: true, skipped: true, data: existing });
+    }
+
     // 1. Data Fetching
     const version = await getLatestVersion();
     const championsMap = await getChampions(version);
