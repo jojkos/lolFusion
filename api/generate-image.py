@@ -28,6 +28,76 @@ from gemini_webapi.utils import rotate_1psidts
 
 
 # ---------------------------------------------------------------------------
+# Monkey-patch: force the web UI's "Create image" tool selection
+# ---------------------------------------------------------------------------
+#
+# gemini-webapi sends a 69-slot inner_req_list with no mode/tool selector,
+# so the chat model decides whether to call the image tool itself — and
+# sometimes replies with text instead. The real web UI sends an 80-slot
+# list with four extra flags that pin the request to image-generation mode.
+#
+# Discovered by diffing real StreamGenerate traffic (Create-image vs plain
+# chat), capturing the same account's payload via in-page XHR interception:
+#
+#     slot  4 : mode_id hash for "Create image"        (lib: unset)
+#     slot 17 : [[2]]                                  (lib: [[0]])
+#     slot 49 : 14                                     (lib: unset)
+#     slot 79 : 1                                      (lib: out of range)
+#     length  : 80                                     (lib: 69)
+#
+# CAVEAT: the slot-4 hash is not in the JS bundle — it's delivered at app
+# boot, possibly per-account. Override via env GEMINI_CREATE_IMAGE_MODE_ID
+# if the default stops working.
+
+CREATE_IMAGE_MODE_ID = os.environ.get(
+    "GEMINI_CREATE_IMAGE_MODE_ID",
+    "6b673798618aff71d105804225368c26",
+)
+
+
+def _patch_create_image_mode() -> None:
+    # The http session (self.client) is created lazily in async init(),
+    # so we hook init() and wrap session.stream after it has been built.
+    orig_init = GeminiClient.init
+
+    async def patched_init(self, *args, **kwargs):
+        result = await orig_init(self, *args, **kwargs)
+        session = self.client
+        if session is None or getattr(session, "_create_image_patched", False):
+            return result
+        orig_stream = session.stream
+
+        def patched_stream(method, url, *a, **kw):
+            try:
+                if method == "POST" and "StreamGenerate" in str(url):
+                    data = kw.get("data")
+                    if data and isinstance(data, dict) and "f.req" in data:
+                        outer = json.loads(data["f.req"])
+                        inner = json.loads(outer[1])
+                        orig_len = len(inner)
+                        while len(inner) < 80:
+                            inner.append(None)
+                        inner[4] = CREATE_IMAGE_MODE_ID
+                        inner[17] = [[2]]
+                        inner[49] = 14
+                        inner[79] = 1
+                        data["f.req"] = json.dumps([outer[0], json.dumps(inner)])
+                        print(f"[create-image patch] applied (orig_len={orig_len}, new_len={len(inner)}, slot4={CREATE_IMAGE_MODE_ID[:8]}…)")
+            except Exception as e:
+                print(f"[create-image patch] failed to rewrite payload: {type(e).__name__}: {e}")
+            return orig_stream(method, url, *a, **kw)
+
+        session.stream = patched_stream
+        session._create_image_patched = True
+        return result
+
+    GeminiClient.init = patched_init
+
+
+_patch_create_image_mode()
+
+
+# ---------------------------------------------------------------------------
 # Cookie store (Upstash Redis REST, same creds @vercel/kv uses)
 # ---------------------------------------------------------------------------
 
