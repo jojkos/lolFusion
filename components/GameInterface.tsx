@@ -481,7 +481,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                                                     autoFocus
                                                     filterOption={(option, input) => {
                                                         const normalize = (s: string) => s.toLowerCase().replace(/['-\s]/g, '');
-                                                        return normalize(option.label).includes(normalize(input));
+                                                        return normalize(option.label).startsWith(normalize(input));
                                                     }}
                                                     noOptionsMessage={() => guess.length > 0 ? 'No matches' : 'Start typing…'}
                                                     isLoading={loading}
@@ -595,7 +595,7 @@ function MobilePicker({
 
     const normalize = (s: string) => s.toLowerCase().replace(/['-\s]/g, '');
     const filtered = search
-        ? options.filter((o) => normalize(o).includes(normalize(search)))
+        ? options.filter((o) => normalize(o).startsWith(normalize(search)))
         : options;
 
     return (
