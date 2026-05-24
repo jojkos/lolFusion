@@ -36,14 +36,23 @@ if (fs.existsSync(envPath)) {
 }
 
 // --- constants (mirror lib/constants.ts) --------------------------------
-const THEMES = [
-  "Blood Moon", "Coven", "Dark Star", "Dawnbringer", "Nightbringer",
-  "Dragonmancer", "Elderwood", "Empyrean", "High Noon", "Inkshadow",
-  "Mecha Kingdoms", "Odyssey", "Omega Squad", "Pool Party", "PROJECT",
-  "PsyOps", "Pulsefire", "Ruined", "Sentinel", "Soul Fighter",
-  "Spirit Blossom", "Star Guardian", "Winterblessed", "Arcade",
-  "Battle Academia", "Cafe Cuties", "Space Groove",
-];
+// The script reads them straight from the TS source by extracting the
+// THEME_REFERENCES object literal — keeps the script in sync with the
+// production constants without duplication.
+const constantsSrc = fs.readFileSync(
+  path.join(__dirname, "..", "lib", "constants.ts"),
+  "utf8",
+);
+const themeRefMatch = constantsSrc.match(
+  /export const THEME_REFERENCES[\s\S]*?=\s*(\{[\s\S]*?\n\});/,
+);
+if (!themeRefMatch) {
+  throw new Error("Could not extract THEME_REFERENCES from lib/constants.ts");
+}
+// Safe-ish eval: the THEME_REFERENCES literal is plain data (strings, null).
+// We strip TS-only type annotations the regex may have matched on.
+const THEME_REFERENCES = new Function(`return (${themeRefMatch[1]});`)();
+const THEMES = Object.keys(THEME_REFERENCES);
 
 // --- DDragon helpers ----------------------------------------------------
 async function getLatestVersion() {
@@ -79,8 +88,48 @@ async function fetchImageBase64(url) {
   return Buffer.from(await r.arrayBuffer()).toString("base64");
 }
 
+// Scan DDragon championFull.json for splash arts whose skin name startsWith
+// the theme. Returns up to `limit` random URLs, excluding the two puzzle
+// champions.
+async function getThemeSkinSplashes(version, theme, excludeIds, limit = 2) {
+  const r = await fetch(
+    `https://ddragon.leagueoflegends.com/cdn/${version}/data/en_US/championFull.json`,
+  );
+  if (!r.ok) return [];
+  const champs = (await r.json()).data;
+  const themeLower = theme.toLowerCase();
+  const excluded = new Set(excludeIds);
+  const matches = [];
+  for (const champ of Object.values(champs)) {
+    if (excluded.has(champ.id)) continue;
+    for (const skin of champ.skins) {
+      if (skin.parentSkin) continue;
+      if (skin.name.toLowerCase().startsWith(themeLower)) {
+        matches.push({ champId: champ.id, skinNum: skin.num, name: skin.name });
+      }
+    }
+  }
+  for (let i = matches.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [matches[i], matches[j]] = [matches[j], matches[i]];
+  }
+  return matches.slice(0, limit).map((m) => ({
+    url: `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${m.champId}_${m.skinNum}.jpg`,
+    name: m.name,
+  }));
+}
+
 // --- refine prompt (mirrors route.ts) -----------------------------------
-async function refinePrompt(basePrompt, theme, loreA, loreB, b64A, b64B) {
+async function refinePrompt(
+  basePrompt,
+  theme,
+  themeBlurb,
+  loreA,
+  loreB,
+  b64A,
+  b64B,
+  themeSkinSplashesB64,
+) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY missing");
 
@@ -99,6 +148,7 @@ Lore: ${loreB.lore}
 Gameplay flavor: ${loreB.allytips.join(" | ")}
 
 Skin theme to apply: ${theme}
+Theme visual style guide: ${themeBlurb}${themeSkinSplashesB64.length > 0 ? `\n\n${themeSkinSplashesB64.length} additional reference image${themeSkinSplashesB64.length > 1 ? "s are" : " is"} provided showing official Riot splash art${themeSkinSplashesB64.length > 1 ? "s" : ""} of OTHER champions in the "${theme}" skinline. Treat ${themeSkinSplashesB64.length > 1 ? "these" : "this"} as the AUTHORITATIVE source for the theme's palette, materials, costuming, silhouettes, and VFX language — but do NOT copy the other characters themselves. Apply only the skinline's aesthetic to the fused character.` : ""}
 
 Base prompt to refine:
 ${basePrompt}
@@ -106,24 +156,23 @@ ${basePrompt}
 Guidance:
 - Use the provided lore as a starting point. ALSO leverage your own knowledge of these champions, the Arcane TV show, official skin universes (Star Guardian, PROJECT, Pulsefire, Spirit Blossom, etc.), regional details (Piltover, Zaun, Ionia, Demacia, Noxus, Shurima, etc.), companions/pets, and signature abilities. Use Google Search when you need to confirm or enrich details, especially for less famous champions or recent releases.
 - Pick 2–3 small recognizable hints per champion. Examples of good hints: signature weapons (Jinx's shark-grinned rocket, Senna's relic cannon, Ekko's Zero Drive), iconic companions (Yuumi's book, Annie's Tibbers, Kindred's lamb mask), faction motifs (Noxian banners, Ionian cherry blossoms, Piltover gears, Zaun pipes), characteristic VFX colors, or skin-line motifs.
-- Reinterpret all hints through the "${theme}" skin universe — keep the theme's materials, palette, and VFX language dominant, but bend the hints to fit (e.g., a Star Guardian variant of a champion's signature weapon).
+- Reinterpret all hints through the "${theme}" skin universe — match the palette, materials, and VFX language from the theme visual style guide${themeSkinSplashesB64.length > 0 ? " and the additional skinline reference image(s)" : ""}. Bend the hints to fit the theme (e.g., a Star Guardian variant of a champion's signature weapon).
 - Hints should be visually evocative but stop short of literal in-image text or champion name labels.
-- The fused character itself remains ONE coherent entity blending the physical traits of both champions (hair, eye color, skin tone, body type, armor silhouette). Use the two reference images for physical anchors.
+- The fused character itself remains ONE coherent entity blending the physical traits of both champions (hair, eye color, skin tone, body type, armor silhouette). Use the FIRST TWO reference images for physical anchors${themeSkinSplashesB64.length > 0 ? `; the remaining ${themeSkinSplashesB64.length} reference image${themeSkinSplashesB64.length > 1 ? "s show" : " shows"} the skinline aesthetic only — do not let those characters appear in the output` : ""}.
 - Composition: cinematic splash art, centered character, detailed background full of hint props.
 - ABSOLUTELY NO TEXT IN THE IMAGE: the refined prompt MUST end with an explicit, forceful exclusion of every form of text — "no text, no letters, no numbers, no words, no signature, no artist signature, no watermark, no logo, no UI elements, no captions, no labels, no subtitles." Reiterate this constraint at the end of the prompt verbatim so the image model honors it.
 
 Return ONLY the refined image-generation prompt as plain text. No JSON, no preamble, no explanation, no markdown.`;
 
-  const contents = [
-    {
-      role: "user",
-      parts: [
-        { text: instruction },
-        { inlineData: { mimeType: "image/jpeg", data: b64A } },
-        { inlineData: { mimeType: "image/jpeg", data: b64B } },
-      ],
-    },
+  const parts = [
+    { text: instruction },
+    { inlineData: { mimeType: "image/jpeg", data: b64A } },
+    { inlineData: { mimeType: "image/jpeg", data: b64B } },
   ];
+  for (const b64 of themeSkinSplashesB64) {
+    parts.push({ inlineData: { mimeType: "image/jpeg", data: b64 } });
+  }
+  const contents = [{ role: "user", parts }];
 
   let res;
   try {
@@ -303,13 +352,39 @@ async function main() {
   const splashA = `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${champA.id}_0.jpg`;
   const splashB = `https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${champB.id}_0.jpg`;
 
-  console.log("→ Fetching lore + splash images…");
-  const [b64A, b64B, loreA, loreB] = await Promise.all([
+  const themeBlurb = THEME_REFERENCES[theme]?.blurb || "";
+
+  console.log("→ Fetching lore + splash images + skinline reference splashes…");
+  const [b64A, b64B, loreA, loreB, themeSkinSplashes] = await Promise.all([
     fetchImageBase64(splashA),
     fetchImageBase64(splashB),
     getChampionDetail(version, champA.id),
     getChampionDetail(version, champB.id),
+    getThemeSkinSplashes(version, theme, [champA.id, champB.id], 2).catch(
+      (e) => {
+        console.warn(`Skinline splash scan failed (${e.message}) — proceeding blurb-only`);
+        return [];
+      },
+    ),
   ]);
+
+  if (themeSkinSplashes.length > 0) {
+    console.log(`   skinline references for ${theme}:`);
+    for (const s of themeSkinSplashes) console.log(`     - ${s.name} → ${s.url}`);
+  } else {
+    console.log(`   no skinline splashes found for ${theme} (blurb-only)`);
+  }
+
+  const themeSkinSplashesB64 = (
+    await Promise.all(
+      themeSkinSplashes.map((s) =>
+        fetchImageBase64(s.url).catch((e) => {
+          console.warn(`Skinline splash fetch failed (${s.url}):`, e.message);
+          return null;
+        }),
+      ),
+    )
+  ).filter(Boolean);
 
   const basePrompt = `Generate a high-fidelity, cinematic splash art of a single fused character that combines the physical traits of League of Legends champions ${champA.name} and ${champB.name}.
 
@@ -328,7 +403,16 @@ async function main() {
   console.log(basePrompt);
 
   console.log("\n→ Refining with gemini-3.5-flash + googleSearch grounding…");
-  const refined = await refinePrompt(basePrompt, theme, loreA, loreB, b64A, b64B);
+  const refined = await refinePrompt(
+    basePrompt,
+    theme,
+    themeBlurb,
+    loreA,
+    loreB,
+    b64A,
+    b64B,
+    themeSkinSplashesB64,
+  );
 
   console.log("\n========== REFINED PROMPT ==========");
   console.log(refined);
