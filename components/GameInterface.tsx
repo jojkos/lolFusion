@@ -720,7 +720,15 @@ function MobilePicker({
                             ref={inputRef}
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && filtered.length > 0) {
+                                    e.preventDefault();
+                                    setOpen(false);
+                                    onSelect(filtered[0]);
+                                }
+                            }}
                             placeholder={placeholder}
+                            enterKeyHint="go"
                             autoCapitalize="none"
                             autoCorrect="off"
                             className="h-[40px] flex-1 bg-transparent px-2 font-[family-name:var(--font-body)] outline-none"
