@@ -20,6 +20,7 @@ import { getDeviceId } from '@/lib/device';
 import { type UserStats } from '@/lib/stats';
 import { hapticCorrect, hapticWrong, hapticWin } from '@/lib/haptics';
 import HistoryDrawer from './HistoryDrawer';
+import StatsModal from './StatsModal';
 import {
     HeaderHUD,
     SlotRail,
@@ -482,8 +483,10 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 phase={phase}
                 attempts={attempts}
                 foundCount={foundSlots.length}
+                streak={userStats?.currentStreak ?? 0}
                 onOpenHistory={() => setHistoryOpen(true)}
                 onOpenHelp={() => setHelpOpen(true)}
+                onOpenStats={() => setStatsOpen(true)}
             />
 
             <div className="mx-auto grid w-full max-w-[1280px] grid-cols-1 gap-3 px-3 py-3 md:grid-cols-[minmax(0,1fr)_420px] md:gap-8 md:px-8 md:py-7">
@@ -668,6 +671,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                                     givenUp={givenUp}
                                     solution={solution}
                                     stats={globalStats}
+                                    streak={userStats?.currentStreak ?? 0}
                                     shareCopied={shareCopied}
                                     onShare={() => {
                                         const bonusTxt = bonusStatus === 'solved' ? 'Bonus ✦' : '— Bonus';
@@ -706,6 +710,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
             </div>
 
             {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
+            {statsOpen && <StatsModal stats={userStats} onClose={() => setStatsOpen(false)} />}
             <HistoryDrawer isOpen={historyOpen} onClose={() => setHistoryOpen(false)} />
         </div>
     );

@@ -251,14 +251,18 @@ export function HeaderHUD({
   phase,
   attempts,
   foundCount,
+  streak,
   onOpenHistory,
   onOpenHelp,
+  onOpenStats,
 }: {
   phase: Phase;
   attempts: number;
   foundCount: number;
+  streak: number;
   onOpenHistory: () => void;
   onOpenHelp: () => void;
+  onOpenStats: () => void;
 }) {
   const isPhase1 = phase === 'phase1';
   const isWon = phase === 'won';
@@ -287,6 +291,17 @@ export function HeaderHUD({
             {attempts}
           </span>
         </div>
+        {streak > 0 && (
+          <div className="flex flex-col items-end gap-[2px]">
+            <span style={{ color: 'var(--ink-faint)', fontSize: 9 }}>STREAK</span>
+            <span
+              className="font-[family-name:var(--font-mono)] text-[13px] font-bold"
+              style={{ color: 'var(--accent)' }}
+            >
+              🔥 {streak}
+            </span>
+          </div>
+        )}
         <button
           onClick={onOpenHistory}
           className="cursor-pointer transition-colors hover:text-[var(--accent-2)]"
@@ -300,6 +315,13 @@ export function HeaderHUD({
           style={{ color: 'var(--ink-dim)', letterSpacing: '0.2em' }}
         >
           ? RULES
+        </button>
+        <button
+          onClick={onOpenStats}
+          className="cursor-pointer transition-colors hover:text-[var(--accent-2)]"
+          style={{ color: 'var(--ink-dim)', letterSpacing: '0.2em' }}
+        >
+          ✦ STATS
         </button>
       </div>
     </div>
@@ -445,6 +467,7 @@ export function VictoryCard({
   givenUp,
   solution,
   stats,
+  streak,
   shareCopied,
   onShare,
 }: {
@@ -455,6 +478,7 @@ export function VictoryCard({
   givenUp: boolean;
   solution: { champA: string; champB: string; theme: string };
   stats: { distribution: Record<string, unknown>; total: number; bonus?: number } | null;
+  streak?: number;
   shareCopied?: boolean;
   onShare?: () => void;
 }) {
@@ -499,6 +523,14 @@ export function VictoryCard({
         >
           {solution.champA} + {solution.champB}
         </div>
+        {streak && streak > 1 && !givenUp && (
+          <div
+            className="mt-[6px] font-[family-name:var(--font-mono)] text-[11px] tracking-[0.2em]"
+            style={{ color: 'var(--accent)' }}
+          >
+            🔥 {streak} day streak
+          </div>
+        )}
       </div>
 
       {/* Score strip */}
