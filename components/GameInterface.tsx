@@ -222,10 +222,9 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
             return;
         }
 
-        const newAttempts = attempts + 1;
-        setAttempts(newAttempts);
-
         if (phase === 'phase1') {
+            const newAttempts = attempts + 1;
+            setAttempts(newAttempts);
             const result = await submitChampionGuess(finalGuess, foundSlots);
 
             if (result.correct && result.slot) {
