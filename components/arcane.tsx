@@ -477,6 +477,7 @@ export function VictoryCard({
   stats,
   streak,
   shareCopied,
+  practice,
   onShare,
 }: {
   baseScore: number;
@@ -488,6 +489,7 @@ export function VictoryCard({
   stats: { distribution: Record<string, unknown>; total: number; bonus?: number } | null;
   streak?: number;
   shareCopied?: boolean;
+  practice?: boolean;
   onShare?: () => void;
 }) {
   const finalScore = givenUp ? null : computeFinalScore(baseScore, bonusSolved);
@@ -548,13 +550,33 @@ export function VictoryCard({
       >
         <ScoreCell label="SCORE" value={finalScore === null ? '—' : String(finalScore)} />
         <ScoreCell label="TRIES" value={String(attempts)} />
-        <ScoreCell
-          label="TOP %"
-          value={givenUp || rank === null ? '—' : String(rank)}
-        />
+        {practice ? (
+          <div
+            className="px-1.5 py-2.5 text-center"
+            style={{ background: 'var(--panel-inner)' }}
+          >
+            <div
+              className="font-mono text-[9px] tracking-[0.25em]"
+              style={{ color: 'var(--ink-faint)' }}
+            >
+              MODE
+            </div>
+            <div
+              className="font-mono text-[11px] font-bold tracking-[0.2em]"
+              style={{ color: 'var(--accent-2)' }}
+            >
+              PRACTICE
+            </div>
+          </div>
+        ) : (
+          <ScoreCell
+            label="TOP %"
+            value={givenUp || rank === null ? '—' : String(rank)}
+          />
+        )}
       </div>
 
-      {stats && stats.total > 0 && (
+      {!practice && stats && stats.total > 0 && (
         <DistributionChart stats={stats} attempts={attempts} givenUp={givenUp} />
       )}
 

@@ -16,10 +16,12 @@ import {
     recordUserResult,
     getUserStats,
     getChampionHint,
+    getArchivePuzzle,
 } from '@/app/actions';
 import { getDeviceId } from '@/lib/device';
 import { type UserStats } from '@/lib/stats';
 import { hapticCorrect, hapticWrong, hapticWin } from '@/lib/haptics';
+import { addSolvedDate } from '@/lib/solvedDates';
 import HistoryDrawer from './HistoryDrawer';
 import StatsModal from './StatsModal';
 import {
@@ -78,6 +80,13 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
     const [shake, setShake] = useState(false);
     const [shareCopied, setShareCopied] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [practiceDate, setPracticeDate] = useState<string | null>(null);
+    const [practiceImage, setPracticeImage] = useState<string | null>(null);
+
+    // Practice derivations
+    const isPractice = practiceDate !== null;
+    const activePuzzle = isPractice ? { imageUrl: practiceImage ?? '', date: practiceDate! } : initialData;
+    const activeDate = isPractice ? practiceDate! : undefined; // passed to date-param actions
 
     useEffect(() => {
         const mq = window.matchMedia('(max-width: 767px)');
@@ -102,6 +111,30 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
         await recordUserResult(deviceId, { date: initialData.date, hints: hintsUsed, ...over });
         refreshUserStats(deviceId);
     };
+
+    const enterPractice = async (date: string) => {
+        const p = await getArchivePuzzle(date);
+        if (!p) return;
+        setPracticeImage(p.imageUrl);
+        setPracticeDate(p.date);
+        setPhase('phase1');
+        setFoundSlots([]);
+        setWrongGuesses([]);
+        setAttempts(0);
+        setGivenUp(false);
+        setRevealedNames({ A: null, B: null, Theme: null });
+        setBonusStatus('open');
+        setBaseScore(0);
+        setHintPenalty(0);
+        setHintsUsed(0);
+        setRoleHints({ A: null, B: null });
+        setZoomLevel(3.0);
+        setMessage(null);
+        setImageLoaded(false);
+        setHistoryOpen(false);
+    };
+
+    const exitPractice = () => window.location.reload();
 
     const selectId = useId();
 
@@ -224,11 +257,11 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
     };
 
     useEffect(() => {
-        if (!initialData?.imageUrl || !canvasRef.current) return;
+        if (!activePuzzle?.imageUrl || !canvasRef.current) return;
 
         const img = new Image();
         img.crossOrigin = 'anonymous';
-        img.src = initialData.imageUrl;
+        img.src = activePuzzle.imageUrl;
 
         img.onload = () => {
             imageRef.current = img;
@@ -241,7 +274,8 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
             setMessage({ ok: false, text: 'Error loading puzzle artifact.' });
             setImageLoaded(false);
         };
-    }, [initialData]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activePuzzle?.imageUrl]);
 
     useEffect(() => {
         if (imageLoaded) drawCanvas();
@@ -250,6 +284,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
 
     const saveState = (newState: Record<string, unknown>) => {
         if (!initialData) return;
+        if (isPractice) return; // never write daily status in practice mode
         const current = localStorage.getItem('fusion_daily_status');
         let data: Record<string, unknown> = current ? JSON.parse(current) : { date: initialData.date };
         if (data.date !== initialData.date) data = { date: initialData.date };
@@ -279,9 +314,12 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
         setZoomLevel(1.0);
         triggerCelebration('win');
         hapticWin();
-        await submitGameStats(champTries);
-        fetchGlobalStats();
-        recordDaily({ score, bonus: false, solved: true, givenUp: false, champTries });
+        if (!isPractice) {
+            await submitGameStats(champTries);
+            fetchGlobalStats();
+            recordDaily({ score, bonus: false, solved: true, givenUp: false, champTries });
+        }
+        addSolvedDate(activePuzzle!.date);
         saveState({
             foundSlots: newFound,
             phase: 'won',
@@ -315,7 +353,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
         if (phase === 'phase1') {
             const newAttempts = attempts + 1;
             setAttempts(newAttempts);
-            const result = await submitChampionGuess(finalGuess, foundSlots);
+            const result = await submitChampionGuess(finalGuess, foundSlots, activeDate);
 
             if (result.correct && result.slot) {
                 const newSlots = [...foundSlots, result.slot];
@@ -359,7 +397,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
 
     const handleGiveUp = async () => {
         if (!confirm('Surrender the rite? The solution will be revealed.')) return;
-        const sol = await getSolution();
+        const sol = await getSolution(activeDate);
         if (!sol) return;
         setGivenUp(true);
         const newRevealed = { A: sol.champA, B: sol.champB, Theme: sol.theme };
@@ -369,18 +407,21 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
         setPhase('won');
         setBonusStatus('skipped');
         setZoomLevel(1.0);
-        localStorage.setItem(
-            'fusion_daily_status',
-            JSON.stringify({
-                date: initialData?.date,
-                solved: true,
-                givenUp: true,
-                revealedNames: newRevealed,
-                attempts: attempts,
-                bonusStatus: 'skipped',
-            }),
-        );
-        recordDaily({ score: 0, bonus: false, solved: false, givenUp: true, champTries: attempts });
+        if (!isPractice) {
+            localStorage.setItem(
+                'fusion_daily_status',
+                JSON.stringify({
+                    date: initialData?.date,
+                    solved: true,
+                    givenUp: true,
+                    revealedNames: newRevealed,
+                    attempts: attempts,
+                    bonusStatus: 'skipped',
+                }),
+            );
+            recordDaily({ score: 0, bonus: false, solved: false, givenUp: true, champTries: attempts });
+        }
+        addSolvedDate(activePuzzle!.date);
     };
 
     const handleBonusGuess = async (explicitGuess?: string) => {
@@ -392,7 +433,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
         }
         setLoading(true);
         setMessage(null);
-        const isCorrect = await submitThemeGuess(finalGuess);
+        const isCorrect = await submitThemeGuess(finalGuess, activeDate);
         if (isCorrect) {
             setBonusStatus('solved');
             setMessage({ ok: true, text: 'Bonus solved — the skin line is yours.' });
@@ -402,9 +443,11 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
             const updated = { ...revealedNames, Theme: finalGuess };
             setRevealedNames(updated);
             saveState({ bonusStatus: 'solved', revealedNames: updated });
-            await submitBonusSolved();
-            recordDaily({ score: computeFinalScore(baseScore, true), bonus: true, solved: true, givenUp: false, champTries: attempts });
-            fetchGlobalStats();
+            if (!isPractice) {
+                await submitBonusSolved();
+                recordDaily({ score: computeFinalScore(baseScore, true), bonus: true, solved: true, givenUp: false, champTries: attempts });
+                fetchGlobalStats();
+            }
         } else {
             setMessage({ ok: false, text: `${finalGuess} — not the skin line.` });
             const newWrong = [...wrongGuesses, finalGuess];
@@ -419,7 +462,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
     };
 
     const handleSkipBonus = async () => {
-        const sol = await getSolution();
+        const sol = await getSolution(activeDate);
         const theme = sol?.theme ?? null;
         const updated = { ...revealedNames, Theme: theme };
         setRevealedNames(updated);
@@ -461,7 +504,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
     const handleRevealChampion = async () => {
         const slot: 'A' | 'B' | null = !foundSlots.includes('A') ? 'A' : !foundSlots.includes('B') ? 'B' : null;
         if (!slot) return;
-        const sol = await getSolution();
+        const sol = await getSolution(activeDate);
         if (!sol) return;
         const name = slot === 'A' ? sol.champA : sol.champB;
         const newFound = [...foundSlots, slot] as ('A' | 'B')[];
@@ -483,9 +526,12 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
             setZoomLevel(1.0);
             triggerCelebration('win');
             hapticWin();
-            await submitGameStats(attempts);
-            fetchGlobalStats();
-            recordDaily({ score, bonus: false, solved: true, givenUp: false, champTries: attempts });
+            if (!isPractice) {
+                await submitGameStats(attempts);
+                fetchGlobalStats();
+                recordDaily({ score, bonus: false, solved: true, givenUp: false, champTries: attempts });
+            }
+            addSolvedDate(activePuzzle!.date);
             saveState({ foundSlots: newFound, phase: 'won', zoomLevel: 1.0, attempts, champTries: attempts, baseScore: score, bonusStatus: 'open', solved: true, revealedNames: updatedRevealed, hintPenalty: newPenalty, hintsUsed: newUsed });
             setTimeout(() => { if (!isMobile) resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 500);
         } else {
@@ -573,6 +619,30 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 onOpenHelp={() => setHelpOpen(true)}
                 onOpenStats={() => setStatsOpen(true)}
             />
+            {/* PRACTICE banner — visible only when replaying a past puzzle */}
+            {isPractice && (
+                <div
+                    className="flex w-full items-center justify-between px-5 py-2 font-mono text-[10px] tracking-[0.28em]"
+                    style={{
+                        background: 'var(--bg-2)',
+                        borderBottom: '1px solid var(--border-strong)',
+                        color: 'var(--accent-2)',
+                    }}
+                >
+                    <span>PRACTICE · {practiceDate}</span>
+                    <button
+                        onClick={exitPractice}
+                        className="cursor-pointer px-3.5 py-1 transition-opacity hover:opacity-80"
+                        style={{
+                            background: 'var(--accent)',
+                            color: 'var(--bg-0)',
+                            border: '1px solid var(--accent)',
+                        }}
+                    >
+                        EXIT
+                    </button>
+                </div>
+            )}
 
             <div className="mx-auto grid w-full max-w-[1280px] grid-cols-1 gap-3 px-3 py-3 md:grid-cols-[minmax(0,1fr)_420px] md:gap-8 md:px-8 md:py-7">
                 {/* LEFT: Artifact */}
@@ -584,7 +654,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                             celebrate={celebrate}
                             imageLoaded={imageLoaded}
                             onOpenFull={() => {
-                                if (canOpenFullImage && initialData) window.open(initialData.imageUrl, '_blank');
+                                if (canOpenFullImage && activePuzzle) window.open(activePuzzle.imageUrl, '_blank');
                             }}
                             canOpenFull={canOpenFullImage}
                             zoomLevel={zoomLevel}
@@ -797,9 +867,10 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                                     stats={globalStats}
                                     streak={userStats?.currentStreak ?? 0}
                                     shareCopied={shareCopied}
+                                    practice={isPractice}
                                     onShare={() => {
                                         const bonusTxt = bonusStatus === 'solved' ? 'Bonus ✦' : '— Bonus';
-                                        const text = `LoL Fusion · ${initialData?.date ?? ''}\n${givenUp ? 'Surrendered' : `Solved in ${attempts}`} · ${bonusTxt}\nScore ${givenUp ? '—' : computeFinalScore(baseScore, bonusStatus === 'solved')}`;
+                                        const text = `LoL Fusion · ${activePuzzle?.date ?? ''}\n${givenUp ? 'Surrendered' : `Solved in ${attempts}`} · ${bonusTxt}\nScore ${givenUp ? '—' : computeFinalScore(baseScore, bonusStatus === 'solved')}`;
                                         if (navigator.clipboard) {
                                             navigator.clipboard.writeText(text).then(() => {
                                                 setShareCopied(true);
@@ -812,8 +883,8 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                         )}
                     </div>
 
-                    {/* Community strip */}
-                    {globalStats && globalStats.total > 0 && (
+                    {/* Community strip — hidden in practice (stats reflect daily, not the archive puzzle) */}
+                    {!isPractice && globalStats && globalStats.total > 0 && (
                         <div
                             className="mt-[14px] flex items-center justify-between px-[18px] py-[12px] font-[family-name:var(--font-mono)] text-[10px] tracking-[0.22em]"
                             style={{
@@ -835,7 +906,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
 
             {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
             {statsOpen && <StatsModal stats={userStats} onClose={() => setStatsOpen(false)} />}
-            <HistoryDrawer isOpen={historyOpen} onClose={() => setHistoryOpen(false)} />
+            <HistoryDrawer isOpen={historyOpen} onClose={() => setHistoryOpen(false)} onPlay={enterPractice} />
         </div>
     );
 }
