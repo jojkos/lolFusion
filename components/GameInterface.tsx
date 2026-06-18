@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useId } from 'react';
 import { Loader2 } from 'lucide-react';
 import Select, { StylesConfig, SelectInstance } from 'react-select';
 import { THEMES } from '@/lib/constants';
-import { computeBaseScore, computeFinalScore, BONUS_POINTS } from '@/lib/scoring';
+import { computeBaseScore, computeFinalScore, BONUS_POINTS, HINT_ROLE_COST, HINT_ZOOM_COST, REVEAL_CHAMPION_COST } from '@/lib/scoring';
 import { isCacheFresh, readChampCache, writeChampCache } from '@/lib/champions';
 import {
     submitChampionGuess,
@@ -15,6 +15,7 @@ import {
     getGameStats,
     recordUserResult,
     getUserStats,
+    getChampionHint,
 } from '@/app/actions';
 import { getDeviceId } from '@/lib/device';
 import { type UserStats } from '@/lib/stats';
@@ -68,6 +69,10 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
     const [bonusStatus, setBonusStatus] = useState<'open' | 'solved' | 'skipped'>('open');
     const [baseScore, setBaseScore] = useState(0);
 
+    const [hintPenalty, setHintPenalty] = useState(0);
+    const [hintsUsed, setHintsUsed] = useState(0);
+    const [roleHints, setRoleHints] = useState<{ A: string | null; B: string | null }>({ A: null, B: null });
+
     const [globalStats, setGlobalStats] = useState<{ distribution: Record<string, unknown>, total: number, bonus?: number } | null>(null);
     const [celebrate, setCelebrate] = useState<Celebrate>(null);
     const [shake, setShake] = useState(false);
@@ -94,7 +99,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
 
     const recordDaily = async (over: { score: number; bonus: boolean; solved: boolean; givenUp: boolean; champTries: number }) => {
         if (!deviceId || !initialData) return;
-        await recordUserResult(deviceId, { date: initialData.date, hints: 0, ...over });
+        await recordUserResult(deviceId, { date: initialData.date, hints: hintsUsed, ...over });
         refreshUserStats(deviceId);
     };
 
@@ -171,6 +176,9 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                     if (parsed.attempts) setAttempts(parsed.attempts);
                     if (parsed.givenUp) setGivenUp(parsed.givenUp);
                     if (parsed.revealedNames) setRevealedNames(parsed.revealedNames);
+                    if (typeof parsed.hintPenalty === 'number') setHintPenalty(parsed.hintPenalty);
+                    if (typeof parsed.hintsUsed === 'number') setHintsUsed(parsed.hintsUsed);
+                    if (parsed.roleHints) setRoleHints(parsed.roleHints);
 
                     if (parsed.solved) {
                         setPhase('won');
@@ -259,6 +267,39 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
         setTimeout(() => setShake(false), 400);
     };
 
+    const finishWin = async (
+        champTries: number,
+        updatedRevealed: { A: string | null; B: string | null; Theme: string | null },
+        newFound: ('A' | 'B')[],
+    ) => {
+        const score = computeBaseScore(champTries, hintPenalty);
+        setBaseScore(score);
+        setPhase('won');
+        setBonusStatus('open');
+        setZoomLevel(1.0);
+        triggerCelebration('win');
+        hapticWin();
+        await submitGameStats(champTries);
+        fetchGlobalStats();
+        recordDaily({ score, bonus: false, solved: true, givenUp: false, champTries });
+        saveState({
+            foundSlots: newFound,
+            phase: 'won',
+            zoomLevel: 1.0,
+            attempts: champTries,
+            champTries,
+            baseScore: score,
+            bonusStatus: 'open',
+            solved: true,
+            revealedNames: updatedRevealed,
+            hintPenalty,
+            hintsUsed,
+        });
+        setTimeout(() => {
+            if (!isMobile) resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 500);
+    };
+
     const handleGuess = async (explicitGuess?: string) => {
         const finalGuess = explicitGuess || guess;
         if (!finalGuess) return;
@@ -288,31 +329,8 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 setRevealedNames(updatedRevealedNames);
 
                 if (result.gameStatus === 'won') {
-                    // WIN: both champions found. Lock score, store stats, open bonus.
-                    const score = computeBaseScore(newAttempts, 0);
-                    setBaseScore(score);
-                    setPhase('won');
-                    setBonusStatus('open');
-                    setZoomLevel(1.0);
-                    triggerCelebration('win');
-                    hapticWin();
-                    await submitGameStats(newAttempts);
-                    recordDaily({ score: score, bonus: false, solved: true, givenUp: false, champTries: newAttempts });
-                    fetchGlobalStats();
-                    saveState({
-                        foundSlots: newSlots,
-                        phase: 'won',
-                        zoomLevel: 1.0,
-                        attempts: newAttempts,
-                        champTries: newAttempts,
-                        baseScore: score,
-                        bonusStatus: 'open',
-                        solved: true,
-                        revealedNames: updatedRevealedNames,
-                    });
-                    setTimeout(() => {
-                        if (!isMobile) resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }, 500);
+                    // WIN: both champions found. Delegate to finishWin.
+                    await finishWin(newAttempts, updatedRevealedNames, newSlots);
                 } else {
                     triggerCelebration('slot');
                     hapticCorrect();
@@ -407,6 +425,73 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
         setRevealedNames(updated);
         setBonusStatus('skipped');
         saveState({ bonusStatus: 'skipped', revealedNames: updated });
+    };
+
+    const handleRoleHint = async () => {
+        const slot: 'A' | 'B' | null = !foundSlots.includes('A') && !roleHints.A
+            ? 'A'
+            : !foundSlots.includes('B') && !roleHints.B
+            ? 'B'
+            : null;
+        if (!slot) return;
+        const hint = await getChampionHint(slot);
+        if (!hint) return;
+        const newRoles = { ...roleHints, [slot]: hint.role };
+        const newPenalty = hintPenalty + HINT_ROLE_COST;
+        const newUsed = hintsUsed + 1;
+        setRoleHints(newRoles);
+        setHintPenalty(newPenalty);
+        setHintsUsed(newUsed);
+        setMessage({ ok: true, text: `Hint: ${slot === 'A' ? 'FIND · 1' : 'FIND · 2'} is a ${hint.role}.` });
+        saveState({ roleHints: newRoles, hintPenalty: newPenalty, hintsUsed: newUsed });
+    };
+
+    const handleRevealMore = () => {
+        if (zoomLevel <= 1.0) return;
+        const newZoom = Math.max(1.0, zoomLevel - 0.5);
+        const newPenalty = hintPenalty + HINT_ZOOM_COST;
+        const newUsed = hintsUsed + 1;
+        setZoomLevel(newZoom);
+        setHintPenalty(newPenalty);
+        setHintsUsed(newUsed);
+        hapticCorrect();
+        saveState({ zoomLevel: newZoom, hintPenalty: newPenalty, hintsUsed: newUsed });
+    };
+
+    const handleRevealChampion = async () => {
+        const slot: 'A' | 'B' | null = !foundSlots.includes('A') ? 'A' : !foundSlots.includes('B') ? 'B' : null;
+        if (!slot) return;
+        const sol = await getSolution();
+        if (!sol) return;
+        const name = slot === 'A' ? sol.champA : sol.champB;
+        const newFound = [...foundSlots, slot] as ('A' | 'B')[];
+        const updatedRevealed = { ...revealedNames, [slot]: name };
+        const newPenalty = hintPenalty + REVEAL_CHAMPION_COST;
+        const newUsed = hintsUsed + 1;
+        setFoundSlots(newFound);
+        setRevealedNames(updatedRevealed);
+        setHintPenalty(newPenalty);
+        setHintsUsed(newUsed);
+        hapticCorrect();
+        if (newFound.includes('A') && newFound.includes('B')) {
+            // Completing reveal wins the game (no guess → champTries unchanged = attempts).
+            // Use the just-updated penalty for scoring.
+            const score = computeBaseScore(attempts, newPenalty);
+            setBaseScore(score);
+            setPhase('won');
+            setBonusStatus('open');
+            setZoomLevel(1.0);
+            triggerCelebration('win');
+            hapticWin();
+            await submitGameStats(attempts);
+            fetchGlobalStats();
+            recordDaily({ score, bonus: false, solved: true, givenUp: false, champTries: attempts });
+            saveState({ foundSlots: newFound, phase: 'won', zoomLevel: 1.0, attempts, champTries: attempts, baseScore: score, bonusStatus: 'open', solved: true, revealedNames: updatedRevealed, hintPenalty: newPenalty, hintsUsed: newUsed });
+            setTimeout(() => { if (!isMobile) resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 500);
+        } else {
+            setMessage({ ok: true, text: `Revealed: ${slot === 'A' ? 'FIND · 1' : 'FIND · 2'} is ${name}.` });
+            saveState({ foundSlots: newFound, revealedNames: updatedRevealed, hintPenalty: newPenalty, hintsUsed: newUsed });
+        }
     };
 
     const rawOptions = phase === 'phase1' ? championsList : THEMES;
