@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-export type Phase = 'phase1' | 'phase2' | 'won';
+export type Phase = 'phase1' | 'won';
 
 // -------- FILIGREE CORNER --------
 export function FiligreeCorner({
@@ -210,16 +210,17 @@ export function StepArrow() {
 export function HeaderHUD({
   phase,
   attempts,
+  foundCount,
   onOpenHistory,
   onOpenHelp,
 }: {
   phase: Phase;
   attempts: number;
+  foundCount: number;
   onOpenHistory: () => void;
   onOpenHelp: () => void;
 }) {
   const isPhase1 = phase === 'phase1';
-  const isPhase2 = phase === 'phase2';
   const isWon = phase === 'won';
   return (
     <div
@@ -230,11 +231,11 @@ export function HeaderHUD({
         <WordmarkLogo />
       </div>
       <div className="hidden items-center gap-[10px] font-[family-name:var(--font-mono)] text-[10px] tracking-[0.18em] md:flex">
-        <StepChip label="FIND · 1" active={isPhase1} done={!isPhase1} />
+        <StepChip label="FIND · 1" active={isPhase1 && foundCount === 0} done={foundCount >= 1} />
         <StepArrow />
-        <StepChip label="FIND · 2" active={isPhase1} done={isPhase2 || isWon} />
+        <StepChip label="FIND · 2" active={isPhase1 && foundCount >= 1} done={isWon} />
         <StepArrow />
-        <StepChip label="SKIN LINE" active={isPhase2} done={isWon} />
+        <StepChip label="BONUS" active={isWon} done={false} />
       </div>
       <div className="flex items-center gap-[18px] font-[family-name:var(--font-mono)] text-[10px] tracking-[0.18em]">
         <div className="flex flex-col items-end gap-[2px]">
@@ -272,16 +273,11 @@ type Slots = { A: Slot; B: Slot; Theme: Slot };
 export function SlotRail({ slots, phase }: { slots: Slots; phase: Phase }) {
   return (
     <div className="mt-[10px] grid grid-cols-[1fr_auto_1fr_auto_1fr] items-stretch gap-[4px] md:mt-[14px] md:gap-[10px]">
-      <SlotCard label="FIND · 1" value={slots.A.name} found={slots.A.found} locked={false} />
+      <SlotCard label="FIND · 1" value={slots.A.name} found={slots.A.found} optional={false} />
       <Connector active={slots.A.found} />
-      <SlotCard label="FIND · 2" value={slots.B.name} found={slots.B.found} locked={false} />
+      <SlotCard label="FIND · 2" value={slots.B.name} found={slots.B.found} optional={false} />
       <Connector active={slots.A.found && slots.B.found} />
-      <SlotCard
-        label="SKIN LINE"
-        value={slots.Theme.name}
-        found={slots.Theme.found}
-        locked={phase === 'phase1'}
-      />
+      <SlotCard label="BONUS" value={slots.Theme.name} found={slots.Theme.found} optional={phase !== 'won'} />
     </div>
   );
 }
@@ -290,12 +286,12 @@ function SlotCard({
   label,
   value,
   found,
-  locked,
+  optional,
 }: {
   label: string;
   value: string | null;
   found: boolean;
-  locked: boolean;
+  optional: boolean;
 }) {
   const valueColor = found ? 'var(--ink)' : 'var(--ink-faint)';
   return (
@@ -304,29 +300,20 @@ function SlotCard({
       style={{
         background: 'var(--panel)',
         borderColor: found ? 'var(--accent)' : 'var(--border)',
-        opacity: locked ? 0.45 : 1,
+        opacity: optional && !found ? 0.6 : 1,
       }}
     >
-      <div
-        className="font-[family-name:var(--font-mono)] text-[8px] tracking-[0.24em] md:text-[9px]"
-        style={{ color: found ? 'var(--accent)' : 'var(--ink-faint)' }}
-      >
-        {found && '✓ '}
-        {label}
+      <div className="font-[family-name:var(--font-mono)] text-[8px] tracking-[0.24em] md:text-[9px]"
+        style={{ color: found ? 'var(--accent)' : 'var(--ink-faint)' }}>
+        {found && '✓ '}{label}
       </div>
-      <div
-        className="mt-[4px] truncate font-[family-name:var(--font-display)] text-[14px] font-semibold md:mt-[6px] md:text-[18px]"
-        style={{ color: valueColor }}
-      >
-        {value || (locked ? '— locked —' : '?????')}
+      <div className="mt-[4px] truncate font-[family-name:var(--font-display)] text-[14px] font-semibold md:mt-[6px] md:text-[18px]"
+        style={{ color: valueColor }}>
+        {value || (optional ? '— bonus —' : '?????')}
       </div>
       {found && (
-        <div
-          className="absolute right-[10px] top-[10px] hidden font-[family-name:var(--font-display)] md:block"
-          style={{ color: 'var(--accent-2)' }}
-        >
-          ✦
-        </div>
+        <div className="absolute right-[10px] top-[10px] hidden font-[family-name:var(--font-display)] md:block"
+          style={{ color: 'var(--accent-2)' }}>✦</div>
       )}
     </div>
   );

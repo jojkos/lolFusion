@@ -395,6 +395,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
             <HeaderHUD
                 phase={phase}
                 attempts={attempts}
+                foundCount={foundSlots.length}
                 onOpenHistory={() => setHistoryOpen(true)}
                 onOpenHelp={() => setHelpOpen(true)}
             />
@@ -770,7 +771,7 @@ function ArcaneArtifact({
                     color: 'var(--accent-2)',
                 }}
             >
-                {phase === 'won' ? '✦ Complete ✦' : phase === 'phase2' ? 'Step · 2' : 'Step · 1'}
+                {phase === 'won' ? '✦ Complete ✦' : 'Step · 1'}
             </div>
             {/* Bottom plate */}
             {phase === 'won' && (
