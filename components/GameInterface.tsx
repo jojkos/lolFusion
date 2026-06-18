@@ -472,6 +472,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                                 if (canOpenFullImage && initialData) window.open(initialData.imageUrl, '_blank');
                             }}
                             canOpenFull={canOpenFullImage}
+                            zoomLevel={zoomLevel}
                         />
                         <SlotRail slots={slots} phase={phase} />
                     </div>
@@ -818,6 +819,7 @@ function ArcaneArtifact({
     imageLoaded,
     onOpenFull,
     canOpenFull,
+    zoomLevel,
 }: {
     canvasRef: React.RefObject<HTMLCanvasElement | null>;
     phase: Phase;
@@ -825,8 +827,12 @@ function ArcaneArtifact({
     imageLoaded: boolean;
     onOpenFull: () => void;
     canOpenFull: boolean;
+    zoomLevel: number;
 }) {
+    const reveal = Math.min(Math.max((3 - zoomLevel) / (3 - 1), 0), 1);
+
     return (
+        <>
         <div className="relative aspect-square w-full">
             {/* Outer glow */}
             <div
@@ -918,5 +924,31 @@ function ArcaneArtifact({
                 </button>
             )}
         </div>
+        {/* Reveal meter — phase1 only */}
+        {phase === 'phase1' && (
+            <div className="mt-2.5 flex items-center gap-2.5">
+                <span
+                    className="font-[family-name:var(--font-mono)] text-[9px] tracking-[0.28em]"
+                    style={{ color: 'var(--ink-faint)' }}
+                >
+                    REVEAL
+                </span>
+                <div
+                    className="flex-1"
+                    style={{ height: 2, background: 'var(--border)', borderRadius: 1 }}
+                >
+                    <div
+                        style={{
+                            height: '100%',
+                            width: `${reveal * 100}%`,
+                            background: 'var(--accent)',
+                            borderRadius: 1,
+                            transition: 'width 0.5s ease',
+                        }}
+                    />
+                </div>
+            </div>
+        )}
+        </>
     );
 }
