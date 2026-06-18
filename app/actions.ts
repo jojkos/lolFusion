@@ -18,6 +18,12 @@ type GuessResult = {
   gameStatus?: 'playing' | 'won';
 };
 
+async function loadPuzzle(date?: string) {
+  return date
+    ? kv.get<DailyPuzzle>(`puzzle:${date}`)
+    : kv.get<DailyPuzzle>('daily_puzzle');
+}
+
 export async function getDailyPuzzle() {
   try {
     const puzzle = await kv.get<DailyPuzzle>('daily_puzzle');
@@ -35,8 +41,8 @@ export async function getDailyPuzzle() {
   }
 }
 
-export async function submitChampionGuess(guess: string, foundSlots: ('A' | 'B')[]): Promise<GuessResult> {
-  const puzzle = await kv.get<DailyPuzzle>('daily_puzzle');
+export async function submitChampionGuess(guess: string, foundSlots: ('A' | 'B')[], date?: string): Promise<GuessResult> {
+  const puzzle = await loadPuzzle(date);
   
   if (!puzzle) {
     return { correct: false, message: 'No active puzzle' };
@@ -79,8 +85,8 @@ export async function submitChampionGuess(guess: string, foundSlots: ('A' | 'B')
   return { correct: false, message: 'Incorrect!' };
 }
 
-export async function submitThemeGuess(guess: string): Promise<boolean> {
-  const puzzle = await kv.get<DailyPuzzle>('daily_puzzle');
+export async function submitThemeGuess(guess: string, date?: string): Promise<boolean> {
+  const puzzle = await loadPuzzle(date);
   if (!puzzle) return false;
 
   return guess.toLowerCase().trim() === puzzle.theme.toLowerCase();
@@ -92,9 +98,9 @@ export async function submitThemeGuess(guess: string): Promise<boolean> {
  * Actually, the requirement says "Zoom out... Game Over/Win".
  * We might not want to send answers unless the game is over.
  */
-export async function getSolution() {
+export async function getSolution(date?: string) {
     try {
-        const puzzle = await kv.get<DailyPuzzle>('daily_puzzle');
+        const puzzle = await loadPuzzle(date);
         if (!puzzle) return null;
         
         return {
@@ -107,6 +113,19 @@ export async function getSolution() {
         return null;
     }
 }
+export async function getArchivePuzzle(date: string): Promise<{ imageUrl: string; date: string } | null> {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    if (!date || date >= today) return null; // archive = strictly past
+    const puzzle = await kv.get<DailyPuzzle>(`puzzle:${date}`);
+    if (!puzzle) return null;
+    return { imageUrl: puzzle.imageUrl, date: puzzle.date };
+  } catch (error) {
+    console.error('Failed to get archive puzzle:', error);
+    return null;
+  }
+}
+
 export async function submitGameStats(attempts: number) {
   try {
     const puzzle = await kv.get<DailyPuzzle>('daily_puzzle');
