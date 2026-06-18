@@ -22,6 +22,7 @@ import {
     FiligreeCorner,
     SlotCelebration,
     WinCelebration,
+    BonusCelebration,
     HelpModal,
     VictoryCard,
     WrongStrip,
@@ -35,7 +36,7 @@ interface GameInterfaceProps {
     } | null;
 }
 
-type Celebrate = 'slot' | 'win' | null;
+type Celebrate = 'slot' | 'win' | 'bonus' | null;
 
 export default function GameInterface({ initialData }: GameInterfaceProps) {
     const [zoomLevel, setZoomLevel] = useState(3.0);
@@ -351,7 +352,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
             setBonusStatus('solved');
             setMessage({ ok: true, text: 'Bonus solved — the skin line is yours.' });
             setGuess('');
-            triggerCelebration('win');
+            triggerCelebration('bonus');
             hapticCorrect();
             const updated = { ...revealedNames, Theme: finalGuess };
             setRevealedNames(updated);
@@ -884,6 +885,7 @@ function ArcaneArtifact({
 
                     {celebrate === 'slot' && <SlotCelebration />}
                     {celebrate === 'win' && <WinCelebration />}
+                    {celebrate === 'bonus' && <BonusCelebration />}
                 </div>
             </div>
             {/* Top plate */}

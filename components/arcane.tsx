@@ -87,6 +87,45 @@ export function SlotCelebration() {
   );
 }
 
+export function BonusCelebration() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* Small gold pulse — lighter and shorter than WinCelebration */}
+      <div
+        className="absolute left-1/2 top-1/2 h-40 w-40"
+        style={{
+          transform: 'translate(-50%,-50%)',
+          background:
+            'radial-gradient(circle, rgba(245,210,122,0.45) 0%, transparent 65%)',
+          mixBlendMode: 'screen',
+          animation: 'fusionGoldPulse 900ms ease-out forwards',
+        }}
+      />
+      {/* 8 sparks — smaller ring than SlotCelebration */}
+      {Array.from({ length: 8 }).map((_, i) => {
+        const angle = (i / 8) * Math.PI * 2;
+        const dx = Math.cos(angle) * 52;
+        const dy = Math.sin(angle) * 52;
+        return (
+          <div
+            key={i}
+            className="absolute left-1/2 top-1/2 h-0.75 w-0.75 rounded-full"
+            style={{
+              marginLeft: -1.5,
+              marginTop: -1.5,
+              background: '#f5d27a',
+              boxShadow: '0 0 6px #f5d27a',
+              ['--tx' as string]: `${dx}px`,
+              ['--ty' as string]: `${dy}px`,
+              animation: 'fusionSpark 700ms ease-out forwards',
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 export function WinCelebration() {
   const [confetti] = React.useState(() =>
     Array.from({ length: 28 }).map(() => {
@@ -560,6 +599,7 @@ function DistributionChart({
             <div
               key={b.label}
               className="flex h-full flex-1 flex-col items-center justify-end gap-1"
+              aria-label={`${b.label} tries: ${b.count}${b.me ? ' (you)' : ''}`}
             >
               {b.me && (
                 <div
@@ -577,6 +617,8 @@ function DistributionChart({
                   background: b.me ? 'var(--accent)' : 'var(--ink-faint)',
                   opacity: b.me ? 1 : 0.5,
                   boxShadow: b.me ? '0 0 12px var(--accent-glow)' : 'none',
+                  outline: b.me ? '1px solid var(--accent-2)' : 'none',
+                  outlineOffset: 2,
                 }}
               />
               <div
@@ -606,6 +648,8 @@ export function WrongStrip({
     <div className="mt-[14px]">
       {message && (
         <div
+          role="status"
+          aria-live="polite"
           className="mb-2 px-3 py-2 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.15em]"
           style={{
             background: message.ok
