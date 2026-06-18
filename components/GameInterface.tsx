@@ -107,7 +107,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
 
     useEffect(() => { refreshUserStats(deviceId); }, [deviceId]);
 
-    const recordDaily = async (over: { score: number; bonus: boolean; solved: boolean; givenUp: boolean; champTries: number }) => {
+    const recordDaily = async (over: { score: number; bonus: boolean; solved: boolean; givenUp: boolean; champTries: number; hints?: number }) => {
         if (!deviceId || !initialData) return;
         await recordUserResult(deviceId, { date: initialData.date, hints: hintsUsed, ...over });
         refreshUserStats(deviceId);
@@ -530,7 +530,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
             if (!isPractice) {
                 await submitGameStats(attempts);
                 fetchGlobalStats();
-                recordDaily({ score, bonus: false, solved: true, givenUp: false, champTries: attempts });
+                recordDaily({ score, bonus: false, solved: true, givenUp: false, champTries: attempts, hints: newUsed });
             }
             addSolvedDate(activePuzzle!.date);
             saveState({ foundSlots: newFound, phase: 'won', zoomLevel: 1.0, attempts, champTries: attempts, baseScore: score, bonusStatus: 'open', solved: true, revealedNames: updatedRevealed, hintPenalty: newPenalty, hintsUsed: newUsed });
