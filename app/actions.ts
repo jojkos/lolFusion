@@ -14,7 +14,7 @@ type GuessResult = {
   correct: boolean;
   slot?: 'A' | 'B';
   message?: string;
-  gameStatus?: 'playing' | 'phase2' | 'won';
+  gameStatus?: 'playing' | 'won';
 };
 
 export async function getDailyPuzzle() {
@@ -55,23 +55,23 @@ export async function submitChampionGuess(guess: string, foundSlots: ('A' | 'B')
 
   if (normalizedGuess === champA) {
     const newFound = [...foundSlots, 'A'];
-    const isPhase2 = newFound.includes('B');
+    const bothFound = newFound.includes('B');
     return {
       correct: true,
       slot: 'A',
-      gameStatus: isPhase2 ? 'phase2' : 'playing',
-      message: `Correct! It contains ${puzzle.champA}!`
+      gameStatus: bothFound ? 'won' : 'playing',
+      message: `Correct! It contains ${puzzle.champA}!`,
     };
   }
 
   if (normalizedGuess === champB) {
     const newFound = [...foundSlots, 'B'];
-    const isPhase2 = newFound.includes('A');
+    const bothFound = newFound.includes('A');
     return {
       correct: true,
       slot: 'B',
-      gameStatus: isPhase2 ? 'phase2' : 'playing',
-      message: `Correct! It contains ${puzzle.champB}!`
+      gameStatus: bothFound ? 'won' : 'playing',
+      message: `Correct! It contains ${puzzle.champB}!`,
     };
   }
 
@@ -115,13 +115,25 @@ export async function submitGameStats(attempts: number) {
     // Key: stats:{date} Field: {attempts} Value: count
     const key = `stats:${puzzle.date}`;
     await kv.hincrby(key, attempts.toString(), 1);
-    
+
     // Also increment total completions
     await kv.incr(`stats:${puzzle.date}:total`);
-    
+
     return true;
   } catch (error) {
     console.error('Failed to submit stats:', error);
+    return false;
+  }
+}
+
+export async function submitBonusSolved() {
+  try {
+    const puzzle = await kv.get<DailyPuzzle>('daily_puzzle');
+    if (!puzzle) return false;
+    await kv.incr(`stats:${puzzle.date}:bonus`);
+    return true;
+  } catch (error) {
+    console.error('Failed to submit bonus solve:', error);
     return false;
   }
 }
@@ -134,10 +146,12 @@ export async function getGameStats() {
         const key = `stats:${puzzle.date}`;
         const distribution = await kv.hgetall(key);
         const total = await kv.get<number>(`stats:${puzzle.date}:total`);
+        const bonus = await kv.get<number>(`stats:${puzzle.date}:bonus`);
 
         return {
             distribution: distribution || {},
-            total: total || 0
+            total: total || 0,
+            bonus: bonus || 0,
         };
     } catch (error) {
         console.error('Failed to get stats:', error);
