@@ -14,6 +14,7 @@ import {
     submitBonusSolved,
     getGameStats,
 } from '@/app/actions';
+import { hapticCorrect, hapticWrong, hapticWin } from '@/lib/haptics';
 import HistoryDrawer from './HistoryDrawer';
 import {
     HeaderHUD,
@@ -117,6 +118,18 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
             if (document.visibilityState === 'visible') fetchGlobalStats();
         }, 30000);
         return () => clearInterval(interval);
+    }, []);
+
+    // Auto-open Help on first visit
+    useEffect(() => {
+        try {
+            if (!localStorage.getItem('fusion_seen_help') && initialData) {
+                setHelpOpen(true);
+                localStorage.setItem('fusion_seen_help', '1');
+            }
+        } catch {
+            /* ignore */
+        }
     }, []);
 
     // Restore from localStorage
@@ -256,6 +269,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                     setBonusStatus('open');
                     setZoomLevel(1.0);
                     triggerCelebration('win');
+                    hapticWin();
                     await submitGameStats(newAttempts);
                     fetchGlobalStats();
                     saveState({
@@ -274,6 +288,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                     }, 500);
                 } else {
                     triggerCelebration('slot');
+                    hapticCorrect();
                     saveState({
                         foundSlots: newSlots,
                         phase: 'phase1',
@@ -289,6 +304,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 setWrongGuesses(newWrong);
                 setGuess('');
                 triggerShake();
+                hapticWrong();
                 saveState({ zoomLevel: newZoom, wrongGuesses: newWrong, attempts: newAttempts });
             }
         }
@@ -336,6 +352,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
             setMessage({ ok: true, text: 'Bonus solved — the skin line is yours.' });
             setGuess('');
             triggerCelebration('win');
+            hapticCorrect();
             const updated = { ...revealedNames, Theme: finalGuess };
             setRevealedNames(updated);
             saveState({ bonusStatus: 'solved', revealedNames: updated });
@@ -347,6 +364,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
             setWrongGuesses(newWrong);
             setGuess('');
             triggerShake();
+            hapticWrong();
             // NOTE: no attempts++ — bonus guesses are penalty-free.
             saveState({ wrongGuesses: newWrong });
         }
