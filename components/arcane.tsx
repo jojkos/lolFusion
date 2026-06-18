@@ -379,19 +379,11 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
       <div className="mt-[6px] font-[family-name:var(--font-display)] text-[24px] font-bold md:text-[28px]">
         How to Play LoL Fusion
       </div>
-      <ol
-        className="mt-4 list-decimal pl-5 text-[14px] leading-[1.7]"
-        style={{ color: 'var(--ink-dim)' }}
-      >
-        <li>Two champions have been fused into one image, wearing the same skin line.</li>
-        <li>
-          <b style={{ color: 'var(--ink)' }}>Step 1:</b> Name both champions. Correct
-          guesses widen your view of the fused image — wrong guesses narrow it.
-        </li>
-        <li>
-          <b style={{ color: 'var(--ink)' }}>Step 2:</b> Name the skin line they share.
-        </li>
-        <li>Finish in the fewest tries. A new fusion drops daily.</li>
+      <ol className="mt-4 list-decimal pl-5 text-[14px] leading-[1.7]" style={{ color: 'var(--ink-dim)' }}>
+        <li>Two champions are fused into one image, wearing the same skin line. The fusion starts <b style={{ color: 'var(--ink)' }}>zoomed in</b>.</li>
+        <li><b style={{ color: 'var(--ink)' }}>Win:</b> name <b style={{ color: 'var(--ink)' }}>both champions</b>. Each wrong guess pulls the view back, revealing a little more — but the fewer tries, the higher your score.</li>
+        <li><b style={{ color: 'var(--ink)' }}>Bonus:</b> after you win, name the shared skin line (e.g. Star Guardian, PROJECT, Battle Academia) for +50. It's optional and never costs you anything.</li>
+        <li>A new fusion drops daily.</li>
       </ol>
       <button
         onClick={onClose}
