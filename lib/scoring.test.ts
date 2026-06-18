@@ -22,6 +22,10 @@ describe('computeBaseScore', () => {
   it('never drops below the floor even with penalties', () => {
     expect(computeBaseScore(12, 100)).toBe(10);
   });
+  it('clamps champTries below par (2) to the max', () => {
+    expect(computeBaseScore(1)).toBe(100);
+    expect(computeBaseScore(0)).toBe(100);
+  });
 });
 
 describe('computeFinalScore', () => {

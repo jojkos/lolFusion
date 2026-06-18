@@ -9,7 +9,8 @@ export const BONUS_POINTS = 50;
  * floored at SCORE_FLOOR. hintPenalty is 0 until the hint system ships.
  */
 export function computeBaseScore(champTries: number, hintPenalty = 0): number {
-  const raw = BASE_MAX - (champTries - PAR_TRIES) * PER_EXTRA_TRY - hintPenalty;
+  const tries = Math.max(champTries, PAR_TRIES);
+  const raw = BASE_MAX - (tries - PAR_TRIES) * PER_EXTRA_TRY - hintPenalty;
   return Math.max(raw, SCORE_FLOOR);
 }
 
