@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useId } from 'react';
 import { Loader2 } from 'lucide-react';
 import Select, { StylesConfig, SelectInstance } from 'react-select';
 import { THEMES } from '@/lib/constants';
-import { computeBaseScore } from '@/lib/scoring';
+import { computeBaseScore, computeFinalScore, BONUS_POINTS } from '@/lib/scoring';
 import {
     submitChampionGuess,
     submitThemeGuess,
@@ -545,14 +545,74 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                             </div>
                         ) : (
                             <div ref={resultsRef} className="mt-[10px]">
+                                {bonusStatus === 'open' && (
+                                    <div className="mb-4 border p-3 md:p-4"
+                                        style={{ borderColor: 'var(--accent)', background: 'var(--panel-inner)' }}>
+                                        <div className="mb-2 font-[family-name:var(--font-mono)] text-[10px] tracking-[0.28em]"
+                                            style={{ color: 'var(--accent)' }}>
+                                            ✦ BONUS · +{BONUS_POINTS}
+                                        </div>
+                                        <div className="mb-3 text-[13px]" style={{ color: 'var(--ink-dim)' }}>
+                                            Name the shared skin line — like Star Guardian, PROJECT, or Battle Academia.
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <div className="flex-1">
+                                                {isMobile ? (
+                                                    <MobilePicker
+                                                        value={guess}
+                                                        options={availableOptions}
+                                                        placeholder="Name the skin line…"
+                                                        disabled={loading}
+                                                        onSelect={(val) => { setGuess(val); handleBonusGuess(val); }}
+                                                    />
+                                                ) : (
+                                                    <Select
+                                                        ref={selectRef}
+                                                        instanceId={selectId}
+                                                        inputId={`${selectId}-input`}
+                                                        options={selectOptions}
+                                                        value={guess ? { value: guess, label: guess } : null}
+                                                        onChange={(option) => { if (option) { setGuess(option.value); handleBonusGuess(option.value); } }}
+                                                        onInputChange={(value, action) => { if (action.action === 'input-change') setGuess(value); }}
+                                                        inputValue={guess}
+                                                        placeholder="Name the skin line…"
+                                                        styles={selectStyles}
+                                                        isSearchable
+                                                        isClearable={false}
+                                                        blurInputOnSelect={false}
+                                                        filterOption={(option, input) => {
+                                                            const normalize = (s: string) => s.toLowerCase().replace(/['-\s]/g, '');
+                                                            return normalize(option.label).startsWith(normalize(input));
+                                                        }}
+                                                        noOptionsMessage={() => guess.length > 0 ? 'No matches' : 'Start typing…'}
+                                                        isLoading={loading}
+                                                        menuPlacement="auto"
+                                                    />
+                                                )}
+                                            </div>
+                                            <button
+                                                onClick={handleSkipBonus}
+                                                className="cursor-pointer px-[18px] font-[family-name:var(--font-mono)] text-[10px] tracking-[0.2em] transition-colors hover:text-[var(--accent)]"
+                                                style={{ color: 'var(--ink-faint)', border: '1px solid var(--border)' }}
+                                            >
+                                                SKIP
+                                            </button>
+                                        </div>
+                                        <WrongStrip guesses={wrongGuesses} message={message} />
+                                    </div>
+                                )}
                                 <VictoryCard
+                                    baseScore={baseScore}
+                                    bonusSolved={bonusStatus === 'solved'}
+                                    bonusStatus={bonusStatus}
                                     attempts={attempts}
                                     givenUp={givenUp}
                                     solution={solution}
                                     stats={globalStats}
                                     shareCopied={shareCopied}
                                     onShare={() => {
-                                        const text = `LoL Fusion · ${initialData?.date ?? ''}\n${givenUp ? 'Surrendered' : `Solved in ${attempts} tries`}\n${solution.champA} + ${solution.champB} · ${solution.theme}`;
+                                        const bonusTxt = bonusStatus === 'solved' ? 'Bonus ✦' : '— Bonus';
+                                        const text = `LoL Fusion · ${initialData?.date ?? ''}\n${givenUp ? 'Surrendered' : `Solved in ${attempts}`} · ${bonusTxt}\nScore ${givenUp ? '—' : computeFinalScore(baseScore, bonusStatus === 'solved')}`;
                                         if (navigator.clipboard) {
                                             navigator.clipboard.writeText(text).then(() => {
                                                 setShareCopied(true);

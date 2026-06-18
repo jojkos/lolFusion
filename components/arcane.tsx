@@ -406,6 +406,9 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
 
 // -------- VICTORY CARD --------
 export function VictoryCard({
+  baseScore,
+  bonusSolved,
+  bonusStatus,
   attempts,
   givenUp,
   solution,
@@ -413,14 +416,17 @@ export function VictoryCard({
   shareCopied,
   onShare,
 }: {
+  baseScore: number;
+  bonusSolved: boolean;
+  bonusStatus: 'open' | 'solved' | 'skipped';
   attempts: number;
   givenUp: boolean;
   solution: { champA: string; champB: string; theme: string };
-  stats: { distribution: Record<string, unknown>; total: number } | null;
+  stats: { distribution: Record<string, unknown>; total: number; bonus?: number } | null;
   shareCopied?: boolean;
   onShare?: () => void;
 }) {
-  const score = Math.max(100 - (attempts - 3) * 10, 10);
+  const finalScore = givenUp ? null : baseScore + (bonusSolved ? 50 : 0);
   let rank: number | null = null;
   if (stats && stats.total > 0) {
     const cumulative = Object.entries(stats.distribution)
@@ -450,11 +456,10 @@ export function VictoryCard({
         >
           {title}
         </div>
-        <div
-          className="mt-[8px] font-[family-name:var(--font-display)] text-[28px] font-bold tracking-[0.08em] md:text-[40px]"
-          style={{ color: 'var(--ink)' }}
-        >
+        <div className="mt-[8px] font-[family-name:var(--font-display)] text-[28px] font-bold tracking-[0.08em] md:text-[40px]"
+          style={{ color: bonusSolved ? 'var(--ink)' : 'var(--ink-faint)' }}>
           {solution.theme.toUpperCase()}
+          {bonusSolved && <span style={{ color: 'var(--accent-2)' }}> ✦</span>}
         </div>
         <div
           className="mt-[4px] font-[family-name:var(--font-body)] italic"
@@ -469,7 +474,7 @@ export function VictoryCard({
         className="mb-[18px] grid grid-cols-3 gap-[1px]"
         style={{ background: 'var(--border)', border: '1px solid var(--border)' }}
       >
-        <ScoreCell label="SCORE" value={givenUp ? '—' : String(score)} />
+        <ScoreCell label="SCORE" value={finalScore === null ? '—' : String(finalScore)} />
         <ScoreCell label="TRIES" value={String(attempts)} />
         <ScoreCell
           label="TOP %"
@@ -531,7 +536,7 @@ function DistributionChart({
   givenUp: boolean;
 }) {
   const bars: { label: string; count: number; me: boolean }[] = [];
-  for (let i = 3; i <= 12; i++) {
+  for (let i = 2; i <= 12; i++) {
     bars.push({
       label: String(i),
       count: Number(stats.distribution[i] || 0),
