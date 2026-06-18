@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import Select, { StylesConfig, SelectInstance } from 'react-select';
 import { THEMES } from '@/lib/constants';
 import { computeBaseScore, computeFinalScore, BONUS_POINTS } from '@/lib/scoring';
+import { isCacheFresh, readChampCache, writeChampCache } from '@/lib/champions';
 import {
     submitChampionGuess,
     submitThemeGuess,
@@ -85,11 +86,20 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 const vRes = await fetch('https://ddragon.leagueoflegends.com/api/versions.json');
                 const versions = await vRes.json();
                 const latest = versions[0];
+                const cache = readChampCache();
+                if (isCacheFresh(cache, latest, Date.now())) {
+                    setChampionsList(cache!.names);
+                    return;
+                }
                 const cRes = await fetch(`https://ddragon.leagueoflegends.com/cdn/${latest}/data/en_US/champion.json`);
                 const data = await cRes.json();
                 const names = Object.values(data.data).map((c) => (c as { name: string }).name);
-                setChampionsList(names.sort());
+                names.sort();
+                setChampionsList(names);
+                writeChampCache({ version: latest, names, fetchedAt: Date.now() });
             } catch (e) {
+                const c = readChampCache();
+                if (c) setChampionsList(c.names);
                 console.error('Failed to fetch champions:', e);
             }
         };
