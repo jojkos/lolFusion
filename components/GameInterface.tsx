@@ -4,11 +4,13 @@ import { useState, useEffect, useRef, useId } from 'react';
 import { Loader2 } from 'lucide-react';
 import Select, { StylesConfig, SelectInstance } from 'react-select';
 import { THEMES } from '@/lib/constants';
+import { computeBaseScore } from '@/lib/scoring';
 import {
     submitChampionGuess,
     submitThemeGuess,
     getSolution,
     submitGameStats,
+    submitBonusSolved,
     getGameStats,
 } from '@/app/actions';
 import HistoryDrawer from './HistoryDrawer';
@@ -50,6 +52,9 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
     const [attempts, setAttempts] = useState(0);
     const [givenUp, setGivenUp] = useState(false);
     const [revealedNames, setRevealedNames] = useState<{ A: string | null; B: string | null; Theme: string | null }>({ A: null, B: null, Theme: null });
+
+    const [bonusStatus, setBonusStatus] = useState<'open' | 'solved' | 'skipped'>('open');
+    const [baseScore, setBaseScore] = useState(0);
 
     const [globalStats, setGlobalStats] = useState<{ distribution: Record<string, unknown>, total: number } | null>(null);
     const [celebrate, setCelebrate] = useState<Celebrate>(null);
@@ -120,15 +125,14 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
 
                     if (parsed.solved) {
                         setPhase('won');
+                        setZoomLevel(1.0);
+                        if (typeof parsed.baseScore === 'number') setBaseScore(parsed.baseScore);
+                        if (parsed.bonusStatus) setBonusStatus(parsed.bonusStatus);
                         setMessage({
                             ok: !parsed.givenUp,
                             text: parsed.givenUp ? 'The seal broke — the names were whispered to you.' : 'Welcome back — you already solved this.',
                         });
-                        setZoomLevel(1.0);
                         fetchGlobalStats();
-                    } else if (parsed.phase === 'phase2') {
-                        setPhase('phase2');
-                        setZoomLevel(1.0);
                     } else if (parsed.zoomLevel) {
                         setZoomLevel(parsed.zoomLevel);
                     }
@@ -230,67 +234,53 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 setMessage({ ok: true, text: result.message || `Champion identified — ${finalGuess}.` });
                 setGuess('');
 
-                let newPhase: Phase = phase;
-                let newZoom = zoomLevel;
-
-                if (result.gameStatus === 'phase2') {
-                    newPhase = 'phase2';
-                    newZoom = 1.0;
-                    setPhase('phase2');
-                    setZoomLevel(1.0);
-                }
-
-                triggerCelebration('slot');
-
                 const updatedRevealedNames = { ...revealedNames };
                 if (result.slot === 'A') updatedRevealedNames.A = finalGuess;
                 if (result.slot === 'B') updatedRevealedNames.B = finalGuess;
-                if (!updatedRevealedNames.Theme) updatedRevealedNames.Theme = null;
                 setRevealedNames(updatedRevealedNames);
 
-                saveState({
-                    foundSlots: newSlots,
-                    phase: newPhase,
-                    zoomLevel: newZoom,
-                    attempts: newAttempts,
-                    revealedNames: updatedRevealedNames,
-                });
+                if (result.gameStatus === 'won') {
+                    // WIN: both champions found. Lock score, store stats, open bonus.
+                    const score = computeBaseScore(newAttempts, 0);
+                    setBaseScore(score);
+                    setPhase('won');
+                    setBonusStatus('open');
+                    setZoomLevel(1.0);
+                    triggerCelebration('win');
+                    await submitGameStats(newAttempts);
+                    fetchGlobalStats();
+                    saveState({
+                        foundSlots: newSlots,
+                        phase: 'won',
+                        zoomLevel: 1.0,
+                        attempts: newAttempts,
+                        champTries: newAttempts,
+                        baseScore: score,
+                        bonusStatus: 'open',
+                        solved: true,
+                        revealedNames: updatedRevealedNames,
+                    });
+                    setTimeout(() => {
+                        if (!isMobile) resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 500);
+                } else {
+                    triggerCelebration('slot');
+                    saveState({
+                        foundSlots: newSlots,
+                        phase: 'phase1',
+                        attempts: newAttempts,
+                        revealedNames: updatedRevealedNames,
+                    });
+                }
             } else {
                 setMessage({ ok: false, text: result.message || `${finalGuess} — not a match. The vision narrows.` });
                 const newZoom = Math.max(1.0, zoomLevel - 0.5);
                 setZoomLevel(newZoom);
-
                 const newWrong = [...wrongGuesses, finalGuess];
                 setWrongGuesses(newWrong);
                 setGuess('');
                 triggerShake();
                 saveState({ zoomLevel: newZoom, wrongGuesses: newWrong, attempts: newAttempts });
-            }
-        } else {
-            const isCorrect = await submitThemeGuess(finalGuess);
-            if (isCorrect) {
-                setPhase('won');
-                setMessage({ ok: true, text: 'The fusion is complete.' });
-                setZoomLevel(1.0);
-                triggerCelebration('win');
-
-                const updatedRevealedWithTheme = { ...revealedNames, Theme: finalGuess };
-                setRevealedNames(updatedRevealedWithTheme);
-                saveState({ solved: true, phase: 'won', zoomLevel: 1.0, attempts: newAttempts, revealedNames: updatedRevealedWithTheme });
-
-                await submitGameStats(newAttempts);
-                fetchGlobalStats();
-
-                setTimeout(() => {
-                    if (!isMobile) resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }, 500);
-            } else {
-                setMessage({ ok: false, text: `${finalGuess} — not the skin line.` });
-                const newWrong = [...wrongGuesses, finalGuess];
-                setWrongGuesses(newWrong);
-                setGuess('');
-                triggerShake();
-                saveState({ wrongGuesses: newWrong, attempts: newAttempts });
             }
         }
         setLoading(false);
@@ -318,6 +308,47 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 attempts: attempts,
             }),
         );
+    };
+
+    const handleBonusGuess = async (explicitGuess?: string) => {
+        const finalGuess = explicitGuess || guess;
+        if (!finalGuess) return;
+        if (wrongGuesses.includes(finalGuess)) {
+            setMessage({ ok: false, text: `"${finalGuess}" already attempted.` });
+            return;
+        }
+        setLoading(true);
+        setMessage(null);
+        const isCorrect = await submitThemeGuess(finalGuess);
+        if (isCorrect) {
+            setBonusStatus('solved');
+            setMessage({ ok: true, text: 'Bonus solved — the skin line is yours.' });
+            setGuess('');
+            triggerCelebration('win');
+            const updated = { ...revealedNames, Theme: finalGuess };
+            setRevealedNames(updated);
+            saveState({ bonusStatus: 'solved', revealedNames: updated });
+            await submitBonusSolved();
+            fetchGlobalStats();
+        } else {
+            setMessage({ ok: false, text: `${finalGuess} — not the skin line.` });
+            const newWrong = [...wrongGuesses, finalGuess];
+            setWrongGuesses(newWrong);
+            setGuess('');
+            triggerShake();
+            // NOTE: no attempts++ — bonus guesses are penalty-free.
+            saveState({ wrongGuesses: newWrong });
+        }
+        setLoading(false);
+    };
+
+    const handleSkipBonus = async () => {
+        const sol = await getSolution();
+        const theme = sol?.theme ?? null;
+        const updated = { ...revealedNames, Theme: theme };
+        setRevealedNames(updated);
+        setBonusStatus('skipped');
+        saveState({ bonusStatus: 'skipped', revealedNames: updated });
     };
 
     const rawOptions = phase === 'phase1' ? championsList : THEMES;
@@ -386,8 +417,6 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
 
     const phaseCopy = phase === 'phase1'
         ? { label: 'STEP · 1', title: 'Identify the champions' }
-        : phase === 'phase2'
-        ? { label: 'STEP · 2', title: 'Name the skin line' }
         : { label: 'RESOLVED', title: 'Review your result' };
 
     return (
