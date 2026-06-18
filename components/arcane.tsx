@@ -332,12 +332,12 @@ export function HeaderHUD({
 type Slot = { name: string | null; found: boolean };
 type Slots = { A: Slot; B: Slot; Theme: Slot };
 
-export function SlotRail({ slots, phase }: { slots: Slots; phase: Phase }) {
+export function SlotRail({ slots, phase, roleHints }: { slots: Slots; phase: Phase; roleHints?: { A: string | null; B: string | null } }) {
   return (
     <div className="mt-[10px] grid grid-cols-[1fr_auto_1fr_auto_1fr] items-stretch gap-[4px] md:mt-[14px] md:gap-[10px]">
-      <SlotCard label="FIND · 1" value={slots.A.name} found={slots.A.found} optional={false} />
+      <SlotCard label="FIND · 1" value={slots.A.name} found={slots.A.found} optional={false} role={roleHints?.A} />
       <Connector active={slots.A.found} />
-      <SlotCard label="FIND · 2" value={slots.B.name} found={slots.B.found} optional={false} />
+      <SlotCard label="FIND · 2" value={slots.B.name} found={slots.B.found} optional={false} role={roleHints?.B} />
       <Connector active={slots.A.found && slots.B.found} />
       <SlotCard label="BONUS" value={slots.Theme.name} found={slots.Theme.found} optional={phase !== 'won'} />
     </div>
@@ -349,11 +349,13 @@ function SlotCard({
   value,
   found,
   optional,
+  role,
 }: {
   label: string;
   value: string | null;
   found: boolean;
   optional: boolean;
+  role?: string | null;
 }) {
   const valueColor = found ? 'var(--ink)' : 'var(--ink-faint)';
   return (
@@ -373,6 +375,12 @@ function SlotCard({
         style={{ color: valueColor }}>
         {value || (optional ? '— bonus —' : '?????')}
       </div>
+      {!found && role && (
+        <div className="mt-0.75 font-mono text-[8px] tracking-[0.2em] md:text-[9px]"
+          style={{ color: 'var(--ink-faint)' }}>
+          ROLE · {role.toUpperCase()}
+        </div>
+      )}
       {found && (
         <div className="absolute right-[10px] top-[10px] hidden font-[family-name:var(--font-display)] md:block"
           style={{ color: 'var(--accent-2)' }}>✦</div>

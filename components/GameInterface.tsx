@@ -589,7 +589,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                             canOpenFull={canOpenFullImage}
                             zoomLevel={zoomLevel}
                         />
-                        <SlotRail slots={slots} phase={phase} />
+                        <SlotRail slots={slots} phase={phase} roleHints={roleHints} />
                     </div>
                 </div>
 
@@ -679,15 +679,54 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                                         </button>
                                     </div>
                                 </div>
-                                <div className="mt-2 flex justify-end">
-                                    <button
-                                        onClick={handleGiveUp}
-                                        className="cursor-pointer font-[family-name:var(--font-mono)] text-[10px] tracking-[0.2em] transition-colors hover:text-[var(--danger)]"
-                                        style={{ color: 'var(--ink-faint)' }}
-                                    >
-                                        SURRENDER
-                                    </button>
-                                </div>
+                                {phase === 'phase1' && (
+                                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                                        {/* HINT: ROLE */}
+                                        {(() => {
+                                            const bothFound = foundSlots.includes('A') && foundSlots.includes('B');
+                                            const bothRevealed = !!roleHints.A && !!roleHints.B;
+                                            const aAvail = !foundSlots.includes('A') && !roleHints.A;
+                                            const bAvail = !foundSlots.includes('B') && !roleHints.B;
+                                            const disabled = bothFound || (!aAvail && !bAvail) || bothRevealed;
+                                            return (
+                                                <button
+                                                    onClick={handleRoleHint}
+                                                    disabled={disabled}
+                                                    className="cursor-pointer font-mono text-[10px] tracking-[0.2em] transition-colors hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                                                    style={{ color: 'var(--ink-faint)' }}
+                                                >
+                                                    HINT: ROLE (−10)
+                                                </button>
+                                            );
+                                        })()}
+                                        {/* REVEAL MORE */}
+                                        <button
+                                            onClick={handleRevealMore}
+                                            disabled={zoomLevel <= 1.0}
+                                            className="cursor-pointer font-mono text-[10px] tracking-[0.2em] transition-colors hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                                            style={{ color: 'var(--ink-faint)' }}
+                                        >
+                                            REVEAL MORE (−10)
+                                        </button>
+                                        {/* REVEAL CHAMPION */}
+                                        <button
+                                            onClick={handleRevealChampion}
+                                            disabled={foundSlots.includes('A') && foundSlots.includes('B')}
+                                            className="cursor-pointer font-mono text-[10px] tracking-[0.2em] transition-colors hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                                            style={{ color: 'var(--ink-faint)' }}
+                                        >
+                                            REVEAL CHAMPION (−30)
+                                        </button>
+                                        <div className="flex-1" />
+                                        <button
+                                            onClick={handleGiveUp}
+                                            className="cursor-pointer font-mono text-[10px] tracking-[0.2em] transition-colors hover:text-(--danger)"
+                                            style={{ color: 'var(--ink-faint)' }}
+                                        >
+                                            SURRENDER
+                                        </button>
+                                    </div>
+                                )}
                                 <WrongStrip guesses={wrongGuesses} message={message} />
                             </div>
                         ) : (
