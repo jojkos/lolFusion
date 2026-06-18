@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { computeFinalScore } from '@/lib/scoring';
 
 export type Phase = 'phase1' | 'won';
 
@@ -418,7 +419,7 @@ export function VictoryCard({
   shareCopied?: boolean;
   onShare?: () => void;
 }) {
-  const finalScore = givenUp ? null : baseScore + (bonusSolved ? 50 : 0);
+  const finalScore = givenUp ? null : computeFinalScore(baseScore, bonusSolved);
   let rank: number | null = null;
   if (stats && stats.total > 0) {
     const cumulative = Object.entries(stats.distribution)

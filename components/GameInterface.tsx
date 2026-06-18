@@ -56,7 +56,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
     const [bonusStatus, setBonusStatus] = useState<'open' | 'solved' | 'skipped'>('open');
     const [baseScore, setBaseScore] = useState(0);
 
-    const [globalStats, setGlobalStats] = useState<{ distribution: Record<string, unknown>, total: number } | null>(null);
+    const [globalStats, setGlobalStats] = useState<{ distribution: Record<string, unknown>, total: number, bonus?: number } | null>(null);
     const [celebrate, setCelebrate] = useState<Celebrate>(null);
     const [shake, setShake] = useState(false);
     const [shareCopied, setShareCopied] = useState(false);
@@ -296,6 +296,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
         setFoundSlots(['A', 'B']);
         setMessage({ ok: false, text: 'The seal breaks — solution revealed.' });
         setPhase('won');
+        setBonusStatus('skipped');
         setZoomLevel(1.0);
         localStorage.setItem(
             'fusion_daily_status',
@@ -305,6 +306,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 givenUp: true,
                 revealedNames: newRevealed,
                 attempts: attempts,
+                bonusStatus: 'skipped',
             }),
         );
     };
