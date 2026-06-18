@@ -13,7 +13,11 @@ import {
     submitGameStats,
     submitBonusSolved,
     getGameStats,
+    recordUserResult,
+    getUserStats,
 } from '@/app/actions';
+import { getDeviceId } from '@/lib/device';
+import { type UserStats } from '@/lib/stats';
 import { hapticCorrect, hapticWrong, hapticWin } from '@/lib/haptics';
 import HistoryDrawer from './HistoryDrawer';
 import {
@@ -50,6 +54,10 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
     const [imgDimensions, setImgDimensions] = useState({ width: 500, height: 500 });
     const [historyOpen, setHistoryOpen] = useState(false);
     const [helpOpen, setHelpOpen] = useState(false);
+    const [statsOpen, setStatsOpen] = useState(false);
+
+    const [deviceId, setDeviceId] = useState<string>('');
+    const [userStats, setUserStats] = useState<UserStats | null>(null);
 
     const [wrongGuesses, setWrongGuesses] = useState<string[]>([]);
     const [attempts, setAttempts] = useState(0);
@@ -72,6 +80,22 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
         mq.addEventListener('change', update);
         return () => mq.removeEventListener('change', update);
     }, []);
+
+    useEffect(() => { setDeviceId(getDeviceId()); }, []);
+
+    const refreshUserStats = async (id: string) => {
+        if (!id) return;
+        const s = await getUserStats(id);
+        if (s) setUserStats(s);
+    };
+
+    useEffect(() => { refreshUserStats(deviceId); }, [deviceId]);
+
+    const recordDaily = async (over: { score: number; bonus: boolean; solved: boolean; givenUp: boolean; champTries: number }) => {
+        if (!deviceId || !initialData) return;
+        await recordUserResult(deviceId, { date: initialData.date, hints: 0, ...over });
+        refreshUserStats(deviceId);
+    };
 
     const selectId = useId();
 
@@ -272,6 +296,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                     triggerCelebration('win');
                     hapticWin();
                     await submitGameStats(newAttempts);
+                    recordDaily({ score: score, bonus: false, solved: true, givenUp: false, champTries: newAttempts });
                     fetchGlobalStats();
                     saveState({
                         foundSlots: newSlots,
@@ -336,6 +361,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 bonusStatus: 'skipped',
             }),
         );
+        recordDaily({ score: 0, bonus: false, solved: false, givenUp: true, champTries: attempts });
     };
 
     const handleBonusGuess = async (explicitGuess?: string) => {
@@ -358,6 +384,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
             setRevealedNames(updated);
             saveState({ bonusStatus: 'solved', revealedNames: updated });
             await submitBonusSolved();
+            recordDaily({ score: computeFinalScore(baseScore, true), bonus: true, solved: true, givenUp: false, champTries: attempts });
             fetchGlobalStats();
         } else {
             setMessage({ ok: false, text: `${finalGuess} — not the skin line.` });
