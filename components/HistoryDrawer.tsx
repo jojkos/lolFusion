@@ -4,15 +4,22 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { getPuzzleHistory, HistoryItem } from '@/app/actions';
 import { FiligreeCorner } from './arcane';
+import { getSolvedDates } from '@/lib/solvedDates';
 
 interface HistoryDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  onPlay: (date: string) => void;
 }
 
-export default function HistoryDrawer({ isOpen, onClose }: HistoryDrawerProps) {
+export default function HistoryDrawer({ isOpen, onClose, onPlay }: HistoryDrawerProps) {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [solved, setSolved] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (isOpen) setSolved(new Set(getSolvedDates()));
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && history.length === 0) {
@@ -92,79 +99,117 @@ export default function HistoryDrawer({ isOpen, onClose }: HistoryDrawerProps) {
               No past fusions yet.
             </div>
           ) : (
-            history.map((item) => (
-              <div
-                key={item.date}
-                className="grid items-center gap-[14px] border-b py-[12px]"
-                style={{
-                  gridTemplateColumns: '72px 1fr auto',
-                  borderColor: 'var(--border)',
-                }}
-              >
-                {/* Thumbnail */}
-                <button
-                  type="button"
-                  onClick={() => window.open(item.imageUrl, '_blank')}
-                  className="group relative h-[72px] w-[72px] cursor-pointer overflow-hidden"
-                  style={{
-                    border: '1px solid var(--border-strong)',
-                    background: 'var(--bg-2)',
-                  }}
-                  aria-label={`View ${item.champA} × ${item.champB} full size`}
-                >
-                  <Image
-                    src={item.imageUrl}
-                    alt={`${item.champA} + ${item.champB}`}
-                    fill
-                    sizes="72px"
-                    className="object-cover transition-opacity group-hover:opacity-75"
-                  />
-                  <div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0"
-                    style={{ boxShadow: 'inset 0 0 20px rgba(0,0,0,0.6)' }}
-                  />
-                </button>
-
-                {/* Meta */}
-                <div className="min-w-0">
-                  <div
-                    className="mb-[4px] font-[family-name:var(--font-mono)] text-[10px] tracking-[0.2em]"
-                    style={{ color: 'var(--ink-faint)' }}
-                  >
-                    {formatDate(item.date)}
-                  </div>
-                  <div
-                    className="truncate font-[family-name:var(--font-display)] text-[15px]"
-                    style={{ color: 'var(--ink)' }}
-                  >
-                    {item.champA}{' '}
-                    <span style={{ color: 'var(--accent)' }}>×</span>{' '}
-                    {item.champB}
-                  </div>
-                  <div
-                    className="mt-[2px] truncate italic"
-                    style={{ color: 'var(--ink-dim)', fontSize: 11 }}
-                  >
-                    {item.theme}
-                  </div>
-                </div>
-
-                {/* Solvers */}
+            history.map((item) => {
+              const isSolved = solved.has(item.date);
+              return (
                 <div
-                  className="whitespace-nowrap text-right font-[family-name:var(--font-mono)] text-[11px]"
-                  style={{ color: 'var(--accent)' }}
+                  key={item.date}
+                  className="grid items-center gap-[14px] border-b py-[12px]"
+                  style={{
+                    gridTemplateColumns: '72px 1fr auto',
+                    borderColor: 'var(--border)',
+                  }}
                 >
-                  {item.totalSolvers.toLocaleString()}
-                  <div
-                    className="text-[9px] tracking-[0.2em]"
-                    style={{ color: 'var(--ink-faint)' }}
+                  {/* Thumbnail */}
+                  <button
+                    type="button"
+                    onClick={() => window.open(item.imageUrl, '_blank')}
+                    className="group relative h-[72px] w-[72px] cursor-pointer overflow-hidden"
+                    style={{
+                      border: '1px solid var(--border-strong)',
+                      background: 'var(--bg-2)',
+                    }}
+                    aria-label={isSolved ? `View ${item.champA} × ${item.champB} full size` : 'View fusion image'}
                   >
-                    SOLVED
+                    <Image
+                      src={item.imageUrl}
+                      alt={isSolved ? `${item.champA} + ${item.champB}` : 'Mystery fusion'}
+                      fill
+                      sizes="72px"
+                      className="object-cover transition-opacity group-hover:opacity-75"
+                    />
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute inset-0"
+                      style={{ boxShadow: 'inset 0 0 20px rgba(0,0,0,0.6)' }}
+                    />
+                  </button>
+
+                  {/* Meta */}
+                  <div className="min-w-0">
+                    <div
+                      className="mb-[4px] font-[family-name:var(--font-mono)] text-[10px] tracking-[0.2em]"
+                      style={{ color: 'var(--ink-faint)' }}
+                    >
+                      {formatDate(item.date)}
+                    </div>
+                    <div
+                      className="truncate font-[family-name:var(--font-display)] text-[15px]"
+                      style={{ color: 'var(--ink)' }}
+                    >
+                      {isSolved ? (
+                        <>
+                          {item.champA}{' '}
+                          <span style={{ color: 'var(--accent)' }}>×</span>{' '}
+                          {item.champB}
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ color: 'var(--ink-dim)' }}>???</span>{' '}
+                          <span style={{ color: 'var(--accent)' }}>×</span>{' '}
+                          <span style={{ color: 'var(--ink-dim)' }}>???</span>
+                        </>
+                      )}
+                    </div>
+                    {isSolved ? (
+                      <div
+                        className="mt-[2px] truncate italic"
+                        style={{ color: 'var(--ink-dim)', fontSize: 11 }}
+                      >
+                        {item.theme}
+                      </div>
+                    ) : (
+                      <div
+                        className="mt-[2px] truncate italic"
+                        style={{ color: 'var(--ink-faint)', fontSize: 11 }}
+                      >
+                        ···
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex flex-col items-end gap-[6px]">
+                    <div
+                      className="whitespace-nowrap text-right font-[family-name:var(--font-mono)] text-[11px]"
+                      style={{ color: 'var(--accent)' }}
+                    >
+                      {item.totalSolvers.toLocaleString()}
+                      <div
+                        className="text-[9px] tracking-[0.2em]"
+                        style={{ color: 'var(--ink-faint)' }}
+                      >
+                        SOLVED
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { onPlay(item.date); onClose(); }}
+                      className="cursor-pointer font-[family-name:var(--font-mono)] text-[10px] tracking-[0.15em] transition-colors hover:text-[var(--accent-2)]"
+                      style={{
+                        color: 'var(--accent)',
+                        border: '1px solid var(--accent)',
+                        padding: '3px 8px',
+                        background: 'transparent',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {isSolved ? 'REPLAY' : 'PLAY'}
+                    </button>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
