@@ -645,7 +645,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 </div>
             )}
 
-            <div className="mx-auto grid w-full max-w-[1280px] grid-cols-1 gap-3 px-3 py-3 md:grid-cols-[minmax(0,1fr)_420px] md:gap-8 md:px-8 md:py-7">
+            <div className="mx-auto grid w-full max-w-[1280px] grid-cols-1 gap-3 px-3 py-3 md:gap-8 md:px-8 md:py-7 lg:grid-cols-[minmax(0,1fr)_420px]">
                 {/* LEFT: Artifact */}
                 <div className="flex flex-col">
                     <div className="mx-auto w-full max-w-[min(100%,38vh)] md:max-w-[560px]">
@@ -665,7 +665,7 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                 </div>
 
                 {/* RIGHT: Control panel */}
-                <div className="flex flex-col">
+                <div className="mx-auto flex w-full max-w-[560px] flex-col lg:max-w-none">
                     <div
                         className="relative px-3 py-3 md:min-h-[280px] md:px-[22px] md:py-5"
                         style={{ background: 'var(--panel)', border: '1px solid var(--border)' }}
@@ -751,51 +751,52 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                                     </div>
                                 </div>
                                 {phase === 'phase1' && (
-                                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-                                        {/* HINT: ROLE */}
-                                        {(() => {
-                                            const bothFound = foundSlots.includes('A') && foundSlots.includes('B');
-                                            const bothRevealed = !!roleHints.A && !!roleHints.B;
-                                            const aAvail = !foundSlots.includes('A') && !roleHints.A;
-                                            const bAvail = !foundSlots.includes('B') && !roleHints.B;
-                                            const disabled = bothFound || (!aAvail && !bAvail) || bothRevealed;
-                                            return (
-                                                <button
-                                                    onClick={handleRoleHint}
-                                                    disabled={disabled}
-                                                    className="cursor-pointer font-mono text-[10px] tracking-[0.2em] transition-colors hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
-                                                    style={{ color: 'var(--ink-faint)' }}
-                                                >
-                                                    HINT: ROLE (−10)
-                                                </button>
-                                            );
-                                        })()}
-                                        {/* REVEAL MORE */}
-                                        <button
-                                            onClick={handleRevealMore}
-                                            disabled={zoomLevel <= 1.0}
-                                            className="cursor-pointer font-mono text-[10px] tracking-[0.2em] transition-colors hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
-                                            style={{ color: 'var(--ink-faint)' }}
+                                    <div className="mt-4">
+                                        <div
+                                            className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em]"
+                                            style={{ color: 'var(--ink-dim)' }}
                                         >
-                                            REVEAL MORE (−10)
-                                        </button>
-                                        {/* REVEAL CHAMPION */}
-                                        <button
-                                            onClick={handleRevealChampion}
-                                            disabled={foundSlots.includes('A') && foundSlots.includes('B')}
-                                            className="cursor-pointer font-mono text-[10px] tracking-[0.2em] transition-colors hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
-                                            style={{ color: 'var(--ink-faint)' }}
+                                            HINTS · spend points to reveal
+                                        </div>
+
+                                        <div className="mt-2 flex flex-wrap gap-2">
+                                            {/* HINT: ROLE */}
+                                            {(() => {
+                                                const bothFound = foundSlots.includes('A') && foundSlots.includes('B');
+                                                const bothRevealed = !!roleHints.A && !!roleHints.B;
+                                                const aAvail = !foundSlots.includes('A') && !roleHints.A;
+                                                const bAvail = !foundSlots.includes('B') && !roleHints.B;
+                                                const disabled = bothFound || (!aAvail && !bAvail) || bothRevealed;
+                                                return (
+                                                    <HintButton onClick={handleRoleHint} disabled={disabled} glyph="◐" label="Reveal a role" cost="−10" />
+                                                );
+                                            })()}
+
+                                            <HintButton onClick={handleRevealMore} disabled={zoomLevel <= 1.0} glyph="⊕" label="Zoom out" cost="−10" />
+
+                                            <HintButton
+                                                onClick={handleRevealChampion}
+                                                disabled={foundSlots.includes('A') && foundSlots.includes('B')}
+                                                glyph="✦"
+                                                label="Reveal a champion"
+                                                cost="−30"
+                                            />
+                                        </div>
+
+                                        {/* Surrender — set apart below a divider */}
+                                        <div
+                                            className="mt-4 flex items-center justify-between border-t pt-3"
+                                            style={{ borderColor: 'var(--border)' }}
                                         >
-                                            REVEAL CHAMPION (−30)
-                                        </button>
-                                        <div className="flex-1" />
-                                        <button
-                                            onClick={handleGiveUp}
-                                            className="cursor-pointer font-mono text-[10px] tracking-[0.2em] transition-colors hover:text-(--danger)"
-                                            style={{ color: 'var(--ink-faint)' }}
-                                        >
-                                            SURRENDER
-                                        </button>
+                                            <span className="text-[13px]" style={{ color: 'var(--ink-faint)' }}>Out of ideas?</span>
+                                            <button
+                                                onClick={handleGiveUp}
+                                                className="cursor-pointer px-[15px] py-[8px] font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em] transition-colors hover:!bg-[var(--danger)] hover:!text-white"
+                                                style={{ border: '1px solid var(--danger)', borderRadius: 2, background: 'transparent', color: 'var(--danger)' }}
+                                            >
+                                                SURRENDER
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                                 <WrongStrip guesses={wrongGuesses} message={message} />
@@ -809,8 +810,8 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                                             style={{ color: 'var(--accent)' }}>
                                             ✦ BONUS · +{BONUS_POINTS}
                                         </div>
-                                        <div className="mb-3 text-[13px]" style={{ color: 'var(--ink-dim)' }}>
-                                            Name the shared skin line — like Star Guardian, PROJECT, or Battle Academia.
+                                        <div className="mb-3 text-[15px]" style={{ color: 'var(--ink-dim)' }}>
+                                            Name the shared skin line for a bonus.
                                         </div>
                                         <div className="flex gap-2">
                                             <div className="flex-1">
@@ -919,6 +920,37 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
     );
 }
 
+// -------- HINT BUTTON --------
+function HintButton({
+    onClick, disabled, glyph, label, cost,
+}: {
+    onClick: () => void; disabled: boolean; glyph: string; label: string; cost: string;
+}) {
+    return (
+        <button
+            onClick={onClick}
+            disabled={disabled}
+            className="inline-flex cursor-pointer items-center gap-2 px-[13px] py-[9px] text-[14px] transition-colors hover:[border-color:var(--border-strong)] hover:[background:var(--panel-inner)] disabled:cursor-not-allowed disabled:opacity-40"
+            style={{
+                border: '1px solid var(--border)',
+                borderRadius: 2,
+                background: 'transparent',
+                color: 'var(--ink)',
+                fontFamily: 'var(--font-body), Georgia, serif',
+            }}
+        >
+            <span style={{ color: 'var(--accent-2)' }}>{glyph}</span>
+            <span>{label}</span>
+            <span
+                className="font-[family-name:var(--font-mono)] text-[11px]"
+                style={{ padding: '2px 8px', borderRadius: 999, background: 'var(--panel-inner)', border: '1px solid var(--border)', color: 'var(--accent)' }}
+            >
+                {cost}
+            </span>
+        </button>
+    );
+}
+
 // -------- MOBILE PICKER --------
 function MobilePicker({
     value,
@@ -1021,23 +1053,37 @@ function MobilePicker({
                                 {search ? 'No matches' : 'Start typing…'}
                             </div>
                         ) : (
-                            filtered.map((opt) => (
-                                <button
-                                    key={opt}
-                                    type="button"
-                                    onClick={() => {
-                                        setOpen(false);
-                                        onSelect(opt);
-                                    }}
-                                    className="block w-full px-4 py-3 text-left font-[family-name:var(--font-body)]"
-                                    style={{
-                                        color: 'var(--ink)',
-                                        borderBottom: '1px solid var(--border)',
-                                    }}
-                                >
-                                    {opt}
-                                </button>
-                            ))
+                            filtered.map((opt, i) => {
+                                const isTop = i === 0 && search.length > 0;
+                                return (
+                                    <button
+                                        key={opt}
+                                        type="button"
+                                        onClick={() => {
+                                            setOpen(false);
+                                            onSelect(opt);
+                                        }}
+                                        className="flex w-full items-center justify-between px-4 py-3 text-left font-[family-name:var(--font-body)]"
+                                        style={{
+                                            color: isTop ? 'var(--accent-2)' : 'var(--ink)',
+                                            background: isTop ? 'var(--bg-2)' : 'transparent',
+                                            borderBottom: '1px solid var(--border)',
+                                            borderLeft: isTop ? '3px solid var(--accent)' : '3px solid transparent',
+                                            fontWeight: isTop ? 600 : 400,
+                                        }}
+                                    >
+                                        <span className="truncate">{opt}</span>
+                                        {isTop && (
+                                            <span
+                                                className="ml-3 shrink-0 font-[family-name:var(--font-mono)] text-[10px] tracking-[0.15em]"
+                                                style={{ color: 'var(--accent)' }}
+                                            >
+                                                ↵ ENTER
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })
                         )}
                     </div>
                 </div>

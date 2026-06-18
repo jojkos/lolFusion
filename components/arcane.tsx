@@ -274,7 +274,7 @@ export function HeaderHUD({
       <div className="flex items-center gap-[14px]">
         <WordmarkLogo />
       </div>
-      <div className="hidden items-center gap-[10px] font-[family-name:var(--font-mono)] text-[10px] tracking-[0.18em] md:flex">
+      <div className="hidden items-center gap-[10px] font-[family-name:var(--font-mono)] text-[10px] tracking-[0.12em] md:flex">
         <StepChip label="FIND · 1" active={isPhase1 && foundCount === 0} done={foundCount >= 1} />
         <StepArrow />
         <StepChip label="FIND · 2" active={isPhase1 && foundCount >= 1} done={isWon} />
@@ -304,22 +304,22 @@ export function HeaderHUD({
         )}
         <button
           onClick={onOpenHistory}
-          className="cursor-pointer transition-colors hover:text-[var(--accent-2)]"
-          style={{ color: 'var(--ink-dim)', letterSpacing: '0.2em' }}
+          className="inline-flex cursor-pointer items-center gap-[6px] px-[11px] py-[7px] transition-colors hover:[color:var(--accent-2)] hover:[border-color:var(--border-strong)]"
+          style={{ border: '1px solid var(--border)', borderRadius: 2, color: 'var(--ink-dim)', letterSpacing: '0.1em' }}
         >
           ◰ HISTORY
         </button>
         <button
           onClick={onOpenHelp}
-          className="cursor-pointer transition-colors hover:text-[var(--accent-2)]"
-          style={{ color: 'var(--ink-dim)', letterSpacing: '0.2em' }}
+          className="inline-flex cursor-pointer items-center gap-[6px] px-[11px] py-[7px] transition-colors hover:[color:var(--accent-2)] hover:[border-color:var(--border-strong)]"
+          style={{ border: '1px solid var(--border)', borderRadius: 2, color: 'var(--ink-dim)', letterSpacing: '0.1em' }}
         >
           ? RULES
         </button>
         <button
           onClick={onOpenStats}
-          className="cursor-pointer transition-colors hover:text-[var(--accent-2)]"
-          style={{ color: 'var(--ink-dim)', letterSpacing: '0.2em' }}
+          className="inline-flex cursor-pointer items-center gap-[6px] px-[11px] py-[7px] transition-colors hover:[color:var(--accent-2)] hover:[border-color:var(--border-strong)]"
+          style={{ border: '1px solid var(--border)', borderRadius: 2, color: 'var(--ink-dim)', letterSpacing: '0.1em' }}
         >
           ✦ STATS
         </button>
@@ -334,7 +334,7 @@ type Slots = { A: Slot; B: Slot; Theme: Slot };
 
 export function SlotRail({ slots, phase, roleHints }: { slots: Slots; phase: Phase; roleHints?: { A: string | null; B: string | null } }) {
   return (
-    <div className="mt-[10px] grid grid-cols-[1fr_auto_1fr_auto_1fr] items-stretch gap-[4px] md:mt-[14px] md:gap-[10px]">
+    <div className="mt-[10px] grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-[4px] md:mt-[14px] md:gap-[10px]">
       <SlotCard label="FIND · 1" value={slots.A.name} found={slots.A.found} optional={false} role={roleHints?.A} />
       <Connector active={slots.A.found} />
       <SlotCard label="FIND · 2" value={slots.B.name} found={slots.B.found} optional={false} role={roleHints?.B} />
@@ -367,7 +367,7 @@ function SlotCard({
         opacity: optional && !found ? 0.6 : 1,
       }}
     >
-      <div className="font-[family-name:var(--font-mono)] text-[8px] tracking-[0.24em] md:text-[9px]"
+      <div className="font-[family-name:var(--font-mono)] text-[8px] tracking-[0.16em] md:text-[9px]"
         style={{ color: found ? 'var(--accent)' : 'var(--ink-faint)' }}>
         {found && '✓ '}{label}
       </div>
@@ -449,10 +449,10 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
       <div className="mt-[6px] font-[family-name:var(--font-display)] text-[24px] font-bold md:text-[28px]">
         How to Play LoL Fusion
       </div>
-      <ol className="mt-4 list-decimal pl-5 text-[14px] leading-[1.7]" style={{ color: 'var(--ink-dim)' }}>
+      <ol className="mt-4 list-decimal pl-5 text-[15px] leading-[1.7]" style={{ color: 'var(--ink-dim)' }}>
         <li>Two champions are fused into one image, wearing the same skin line. The fusion starts <b style={{ color: 'var(--ink)' }}>zoomed in</b>.</li>
         <li><b style={{ color: 'var(--ink)' }}>Win:</b> name <b style={{ color: 'var(--ink)' }}>both champions</b>. Each wrong guess pulls the view back, revealing a little more — but the fewer tries, the higher your score.</li>
-        <li><b style={{ color: 'var(--ink)' }}>Bonus:</b> after you win, name the shared skin line (e.g. Star Guardian, PROJECT, Battle Academia) for +50. It's optional and never costs you anything.</li>
+        <li><b style={{ color: 'var(--ink)' }}>Bonus:</b> after you win, name the shared skin line for +50. It's optional and never costs you anything.</li>
         <li>A new fusion drops daily.</li>
       </ol>
       <button
@@ -712,7 +712,7 @@ export function WrongStrip({
         <div
           role="status"
           aria-live="polite"
-          className="mb-2 px-3 py-2 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.15em]"
+          className="mb-2 px-3 py-2 font-[family-name:var(--font-mono)] text-[13px] tracking-[0.15em]"
           style={{
             background: message.ok
               ? 'rgba(127,185,122,0.12)'
@@ -728,10 +728,10 @@ export function WrongStrip({
       {guesses.length > 0 && (
         <div className="flex flex-wrap items-center gap-[6px]">
           <span
-            className="mr-1 font-[family-name:var(--font-mono)] text-[9px] tracking-[0.2em]"
+            className="mr-1 font-[family-name:var(--font-mono)] text-[9px] tracking-[0.14em]"
             style={{ color: 'var(--ink-faint)' }}
           >
-            INVALID ({guesses.length}):
+            MISSED ({guesses.length}):
           </span>
           {guesses.slice(-8).map((g) => (
             <span

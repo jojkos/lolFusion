@@ -16,9 +16,13 @@ export default function HistoryDrawer({ isOpen, onClose, onPlay }: HistoryDrawer
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [solved, setSolved] = useState<Set<string>>(new Set());
+  const [revealAll, setRevealAll] = useState(false);
 
   useEffect(() => {
-    if (isOpen) setSolved(new Set(getSolvedDates()));
+    if (isOpen) {
+      setSolved(new Set(getSolvedDates()));
+      setRevealAll(false); // answers hidden by default each time the drawer opens
+    }
   }, [isOpen]);
 
   useEffect(() => {
@@ -72,14 +76,31 @@ export default function HistoryDrawer({ isOpen, onClose, onPlay }: HistoryDrawer
               Past Fusions
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="cursor-pointer mt-1 flex h-8 w-8 items-center justify-center transition-colors hover:text-[var(--accent-2)]"
-            style={{ color: 'var(--ink-dim)', fontFamily: 'var(--font-mono)', fontSize: 18 }}
-            aria-label="Close"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setRevealAll((v) => !v)}
+              aria-pressed={revealAll}
+              className="cursor-pointer font-[family-name:var(--font-mono)] text-[10px] tracking-[0.18em] transition-colors hover:text-[var(--accent-2)]"
+              style={{
+                color: revealAll ? 'var(--bg-0)' : 'var(--accent)',
+                background: revealAll ? 'var(--accent)' : 'transparent',
+                border: '1px solid var(--accent)',
+                padding: '5px 10px',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {revealAll ? 'HIDE ANSWERS' : 'REVEAL ANSWERS'}
+            </button>
+            <button
+              onClick={onClose}
+              className="cursor-pointer flex h-8 w-8 items-center justify-center transition-colors hover:text-[var(--accent-2)]"
+              style={{ color: 'var(--ink-dim)', fontFamily: 'var(--font-mono)', fontSize: 18 }}
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Scrollable list */}
@@ -101,6 +122,7 @@ export default function HistoryDrawer({ isOpen, onClose, onPlay }: HistoryDrawer
           ) : (
             history.map((item) => {
               const isSolved = solved.has(item.date);
+              const showAnswer = isSolved || revealAll;
               return (
                 <div
                   key={item.date}
@@ -119,11 +141,11 @@ export default function HistoryDrawer({ isOpen, onClose, onPlay }: HistoryDrawer
                       border: '1px solid var(--border-strong)',
                       background: 'var(--bg-2)',
                     }}
-                    aria-label={isSolved ? `View ${item.champA} × ${item.champB} full size` : 'View fusion image'}
+                    aria-label={showAnswer ? `View ${item.champA} × ${item.champB} full size` : 'View fusion image'}
                   >
                     <Image
                       src={item.imageUrl}
-                      alt={isSolved ? `${item.champA} + ${item.champB}` : 'Mystery fusion'}
+                      alt={showAnswer ? `${item.champA} + ${item.champB}` : 'Mystery fusion'}
                       fill
                       sizes="72px"
                       className="object-cover transition-opacity group-hover:opacity-75"
@@ -147,7 +169,7 @@ export default function HistoryDrawer({ isOpen, onClose, onPlay }: HistoryDrawer
                       className="truncate font-[family-name:var(--font-display)] text-[15px]"
                       style={{ color: 'var(--ink)' }}
                     >
-                      {isSolved ? (
+                      {showAnswer ? (
                         <>
                           {item.champA}{' '}
                           <span style={{ color: 'var(--accent)' }}>×</span>{' '}
@@ -161,7 +183,7 @@ export default function HistoryDrawer({ isOpen, onClose, onPlay }: HistoryDrawer
                         </>
                       )}
                     </div>
-                    {isSolved ? (
+                    {showAnswer ? (
                       <div
                         className="mt-[2px] truncate italic"
                         style={{ color: 'var(--ink-dim)', fontSize: 11 }}

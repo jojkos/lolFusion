@@ -7,16 +7,16 @@
   --bg-0: #07060a;
   --bg-1: #100c14;
   --bg-2: #1a1420;
-  --ink: #ece4d3;
-  --ink-dim: #a89a7d;
-  --ink-faint: #5c523f;
-  --accent: #d9a84a;
-  --accent-2: #f5d27a;
+  --ink: #f3ecdd;
+  --ink-dim: #cdbd98;
+  --ink-faint: #9a8c6e;
+  --accent: #e3b65e;
+  --accent-2: #f8dd8d;
   --accent-glow: rgba(217, 168, 74, 0.35);
   --success: #7fb97a;
-  --danger: #c2553f;
-  --border: rgba(217, 168, 74, 0.28);
-  --border-strong: rgba(217, 168, 74, 0.55);
+  --danger: #d76d54;
+  --border: rgba(227, 182, 94, 0.30);
+  --border-strong: rgba(227, 182, 94, 0.62);
   --panel: rgba(16, 12, 20, 0.88);
   --panel-inner: rgba(8, 6, 10, 0.7);
 }
