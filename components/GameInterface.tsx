@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import Select, { StylesConfig, SelectInstance } from 'react-select';
 import { THEMES } from '@/lib/constants';
 import { computeBaseScore, computeFinalScore, BONUS_POINTS, HINT_ROLE_COST, HINT_ZOOM_COST, REVEAL_CHAMPION_COST } from '@/lib/scoring';
+import { buildShareText } from '@/lib/share';
 import { isCacheFresh, readChampCache, writeChampCache } from '@/lib/champions';
 import {
     submitChampionGuess,
@@ -869,8 +870,15 @@ export default function GameInterface({ initialData }: GameInterfaceProps) {
                                     shareCopied={shareCopied}
                                     practice={isPractice}
                                     onShare={() => {
-                                        const bonusTxt = bonusStatus === 'solved' ? 'Bonus ✦' : '— Bonus';
-                                        const text = `LoL Fusion · ${activePuzzle?.date ?? ''}\n${givenUp ? 'Surrendered' : `Solved in ${attempts}`} · ${bonusTxt}\nScore ${givenUp ? '—' : computeFinalScore(baseScore, bonusStatus === 'solved')}`;
+                                        const text = buildShareText({
+                                            date: activePuzzle?.date ?? '',
+                                            attempts,
+                                            givenUp,
+                                            bonusSolved: bonusStatus === 'solved',
+                                            streak: userStats?.currentStreak ?? 0,
+                                            score: givenUp ? null : computeFinalScore(baseScore, bonusStatus === 'solved'),
+                                            url: typeof window !== 'undefined' ? window.location.origin : '',
+                                        });
                                         if (navigator.clipboard) {
                                             navigator.clipboard.writeText(text).then(() => {
                                                 setShareCopied(true);
