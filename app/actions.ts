@@ -1,6 +1,7 @@
 'use server';
 
 import { kv } from '@vercel/kv';
+import { computeUserStats, type UserResult, type UserStats } from '@/lib/stats';
 
 type DailyPuzzle = {
   champA: string;
@@ -157,6 +158,34 @@ export async function getGameStats() {
         console.error('Failed to get stats:', error);
         return null;
     }
+}
+
+export async function recordUserResult(deviceId: string, result: UserResult): Promise<boolean> {
+  try {
+    if (!deviceId) return false;
+    // @vercel/kv serializes the value; field is the puzzle date.
+    await kv.hset(`user:${deviceId}`, { [result.date]: result });
+    return true;
+  } catch (error) {
+    console.error('Failed to record user result:', error);
+    return false;
+  }
+}
+
+export async function getUserStats(deviceId: string): Promise<UserStats | null> {
+  try {
+    if (!deviceId) return null;
+    const all = await kv.hgetall<Record<string, unknown>>(`user:${deviceId}`);
+    if (!all) return null;
+    const results: UserResult[] = Object.values(all)
+      .map((v) => (typeof v === 'string' ? JSON.parse(v) : v))
+      .filter((v): v is UserResult => !!v && typeof v === 'object' && 'date' in v);
+    const today = new Date().toISOString().slice(0, 10);
+    return computeUserStats(results, today);
+  } catch (error) {
+    console.error('Failed to get user stats:', error);
+    return null;
+  }
 }
 
 export type HistoryItem = DailyPuzzle & { totalSolvers: number };
