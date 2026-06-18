@@ -3,6 +3,9 @@ export const PAR_TRIES = 2;
 export const PER_EXTRA_TRY = 10;
 export const SCORE_FLOOR = 10;
 export const BONUS_POINTS = 50;
+export const HINT_ROLE_COST = 10;
+export const HINT_ZOOM_COST = 10;
+export const REVEAL_CHAMPION_COST = 30;
 
 /**
  * Base score from champion-phase tries (min 2) minus any hint penalty,

@@ -3,6 +3,9 @@ import {
   computeBaseScore,
   computeFinalScore,
   BONUS_POINTS,
+  HINT_ROLE_COST,
+  HINT_ZOOM_COST,
+  REVEAL_CHAMPION_COST,
 } from './scoring';
 
 describe('computeBaseScore', () => {
@@ -34,5 +37,19 @@ describe('computeFinalScore', () => {
   });
   it('returns base unchanged when bonus not solved', () => {
     expect(computeFinalScore(80, false)).toBe(80);
+  });
+});
+
+describe('hint costs', () => {
+  it('exposes the configured hint costs', () => {
+    expect(HINT_ROLE_COST).toBe(10);
+    expect(HINT_ZOOM_COST).toBe(10);
+    expect(REVEAL_CHAMPION_COST).toBe(30);
+  });
+  it('a partial reveal penalty lowers the base score but not below the floor', () => {
+    // 2 tries (base 100) minus a 30 reveal penalty = 70
+    expect(computeBaseScore(2, REVEAL_CHAMPION_COST)).toBe(70);
+    // heavy tries + penalties still floor at 10
+    expect(computeBaseScore(12, REVEAL_CHAMPION_COST)).toBe(10);
   });
 });

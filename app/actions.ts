@@ -188,6 +188,29 @@ export async function getUserStats(deviceId: string): Promise<UserStats | null> 
   }
 }
 
+export async function getChampionHint(slot: 'A' | 'B'): Promise<{ role: string } | null> {
+  try {
+    const puzzle = await kv.get<DailyPuzzle>('daily_puzzle');
+    if (!puzzle) return null;
+    const name = slot === 'A' ? puzzle.champA : puzzle.champB;
+    const vRes = await fetch('https://ddragon.leagueoflegends.com/api/versions.json');
+    const versions = await vRes.json();
+    const latest = versions[0];
+    const cRes = await fetch(
+      `https://ddragon.leagueoflegends.com/cdn/${latest}/data/en_US/champion.json`,
+    );
+    const data = await cRes.json();
+    const champ = Object.values(data.data).find(
+      (c) => (c as { name?: string }).name?.toLowerCase() === name.toLowerCase(),
+    ) as { tags?: string[] } | undefined;
+    const role = champ?.tags?.[0] ?? 'Unknown';
+    return { role };
+  } catch (error) {
+    console.error('Failed to get champion hint:', error);
+    return null;
+  }
+}
+
 export type HistoryItem = DailyPuzzle & { totalSolvers: number };
 
 export async function getPuzzleHistory(): Promise<HistoryItem[]> {
